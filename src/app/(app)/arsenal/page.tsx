@@ -3,7 +3,10 @@ import { Hammer, Plus, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button, Card, CardHeader, Input, Label, Modal, Money, PageHeader, Pill, Progress, Segmented, Select, Textarea, cn, fmtNum, fmtPct } from "@/components/ui";
 import { RARITIES, badges, weaponStats } from "@/core/game";
+import { GEAR_TIERS, tierRequirement } from "@/core/gear";
+import { GearIcon } from "@/components/gear-icon";
 import type { AssetClass, Setup, WeaponClass } from "@/core/types";
+import { LESSONS } from "@/core/academy";
 import { useJournal } from "@/lib/hooks";
 import { useStore } from "@/lib/store";
 
@@ -13,7 +16,7 @@ const MARKETS: AssetClass[] = ["crypto", "forex", "futures", "equities", "option
 const MAX_EQUIPPED = 4;
 
 export default function ArsenalPage() {
-  const { trades, setups } = useJournal();
+  const { trades, setups, me } = useJournal();
   const saveSetup = useStore((s) => s.saveSetup);
   const [editing, setEditing] = useState<Setup | "new" | null>(null);
   const [filter, setFilter] = useState<"all" | "equipped">("all");
@@ -23,7 +26,7 @@ export default function ArsenalPage() {
   );
   const shown = filter === "equipped" ? weapons.filter((x) => x.setup.equipped) : weapons;
   const equippedCount = setups.filter((s) => s.equipped).length;
-  const trophies = badges(trades, setups);
+  const trophies = badges(trades, setups, { testTaken: !!me?.traderProfile, lessonsDone: me?.lessonsDone?.length ?? 0, freeLessons: LESSONS.filter((l) => l.tier === "free").length });
 
   function toggleEquip(s: Setup) {
     if (!s.equipped && equippedCount >= MAX_EQUIPPED) return;
@@ -46,7 +49,7 @@ export default function ArsenalPage() {
       <div className="mb-5 flex flex-wrap items-center gap-3 text-[11px] text-muted">
         Rarity is earned, not chosen:
         {RARITIES.map((r, i) => (
-          <span key={r.name} className="flex items-center gap-1.5" title={["Any setup", "5+ trades, positive expectancy", "10+ trades, PF ≥ 1.4", "15+ trades, PF ≥ 1.9, win ≥ 45%", "25+ trades, PF ≥ 2.5, 80%+ discipline"][i]}>
+          <span key={r.name} className="flex items-center gap-1.5" title={tierRequirement(GEAR_TIERS[i])}>
             <span className="h-2 w-2 rounded-full" style={{ background: r.color, boxShadow: `0 0 8px ${r.color}` }} />
             <span style={{ color: r.color }} className="font-semibold">{r.name}</span>
           </span>
@@ -57,8 +60,9 @@ export default function ArsenalPage() {
         {shown.map(({ setup, w }) => (
           <div key={setup.id} className="weapon-card card group flex flex-col p-5 transition hover:-translate-y-0.5" style={{ ["--glow" as string]: w.rarity.glow, borderColor: `${w.rarity.color}40` }}>
             <div className="relative flex items-start gap-4">
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-4xl" style={{ background: `linear-gradient(145deg, ${w.rarity.glow}, transparent)`, boxShadow: `inset 0 0 0 1px ${w.rarity.color}66, 0 0 24px -6px ${w.rarity.color}` }}>
-                {setup.icon}
+              <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl" style={{ background: `linear-gradient(145deg, ${w.rarity.glow}, transparent)`, boxShadow: `inset 0 0 0 1px ${w.rarity.color}66, 0 0 24px -6px ${w.rarity.color}` }}>
+                <GearIcon tier={w.tier} index={w.rarityIndex} size={58} />
+                <span className="absolute -bottom-1 -right-1 rounded-md bg-surface-2 px-1 text-base leading-tight">{setup.icon}</span>
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] font-bold uppercase tracking-[.14em]" style={{ color: w.rarity.color }}>{w.rarity.name} · {setup.weaponClass}</div>
@@ -208,7 +212,7 @@ function PlaybookEditor({ setup, onClose }: { setup: Setup | null; onClose: () =
                 <div><div className="text-[10px] uppercase text-faint">Discipline</div><div className="num font-semibold">{fmtPct(w.summary.disciplineRate, 0)}</div></div>
               </div>
               <div className="mt-4 text-xs text-muted">
-                Next rarity: {w.rarityIndex >= 4 ? "Maxed. This is a Legendary weapon." : ["5+ trades with positive expectancy", "10+ trades and PF ≥ 1.4", "15+ trades, PF ≥ 1.9, win rate ≥ 45%", "25+ trades, PF ≥ 2.5, 80%+ rules followed"][w.rarityIndex]}
+                {w.nextTier ? <>Next tier: <b style={{ color: w.nextTier.color }}>{w.nextTier.name}</b> needs {tierRequirement(w.nextTier)}.</> : "Maxed. This is a God-tier weapon."}
               </div>
             </Card>
           ) : (

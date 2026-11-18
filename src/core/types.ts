@@ -1,4 +1,5 @@
 // Pure domain types. No React, no Next, no browser APIs.
+import type { TestResult } from "./trader-test";
 // Everything in src/core is shared with the future Expo mobile app.
 
 export type Role = "user" | "admin";
@@ -41,6 +42,13 @@ export interface User {
   status: "active" | "suspended";
   jobClass?: JobClass;
   title?: string;
+  /** Latest Trader Class Test result. */
+  traderProfile?: TestResult;
+  /** Academy lesson ids completed. */
+  lessonsDone?: string[];
+  plan?: "free" | "guild";
+  /** Equipped item id per slot (see core/items.ts). */
+  loadout?: Partial<Record<"weapon" | "offhand" | "helm" | "armor" | "cloak" | "boots" | "trinket", string>>;
 }
 
 export type JobClass = "wizard" | "warrior" | "assassin" | "archer" | "defender" | "sniper";

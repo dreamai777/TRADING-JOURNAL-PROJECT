@@ -1,5 +1,5 @@
 "use client";
-import { BarChart3, Bot, BookOpen, Crown, FlaskConical, LayoutDashboard, LogOut, Map, Plug, Plus, Settings, Swords, Brain, UserRound } from "lucide-react";
+import { BarChart3, Bot, BookOpen, Crown, FlaskConical, GraduationCap, LayoutDashboard, LogOut, Map, Plug, Plus, ScrollText, Settings, Shield, Swords, Brain, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,14 +10,18 @@ import { useStore } from "@/lib/store";
 import { Logo } from "./logo";
 import { QuickSnap } from "./quick-snap";
 import { Progress, cn } from "./ui";
+import { GlowTracker } from "./landing/glow";
 
 const NAV = [
   { href: "/dashboard", label: "Command Center", short: "Home", icon: LayoutDashboard },
   { href: "/profile", label: "My Character", short: "Hero", icon: UserRound },
   { href: "/journal", label: "Journal", short: "Journal", icon: BookOpen },
   { href: "/arsenal", label: "Arsenal", short: "Arsenal", icon: Swords },
+  { href: "/spellbook", label: "Spellbook", short: "Spells", icon: ScrollText },
+  { href: "/armory", label: "Armory", short: "Armory", icon: Shield },
   { href: "/analytics", label: "Analytics", short: "Stats", icon: BarChart3 },
   { href: "/mindset", label: "Mindset & Risk", short: "Mind", icon: Brain },
+  { href: "/academy", label: "Academy", short: "Learn", icon: GraduationCap },
   { href: "/backtest", label: "Backtest Lab", short: "Lab", icon: FlaskConical },
   { href: "/coach", label: "AI Coach", short: "Coach", icon: Bot },
   { href: "/connections", label: "Connections", short: "Sync", icon: Plug },
@@ -66,6 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
+      <GlowTracker />
       {/* Sidebar */}
       <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-line bg-surface/60 lg:flex">
         <div className="px-5 pt-5 pb-4">

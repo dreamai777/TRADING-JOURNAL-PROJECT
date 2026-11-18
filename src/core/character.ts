@@ -60,8 +60,8 @@ export function recommendJob(trades: TradeComputed[], setupClass: (id?: string) 
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "warrior";
 }
 
-export function characterState(trades: TradeComputed[], account: number, job: JobClass, now = Date.now()) {
-  const progress = traderProgress(trades);
+export function characterState(trades: TradeComputed[], account: number, job: JobClass, now = Date.now(), bonusXp = 0) {
+  const progress = traderProgress(trades, bonusXp);
   const def = JOBS[job];
   const tier = progress.level < 15 ? 0 : progress.level < 30 ? 1 : 2;
   const s = summarize(trades, account);

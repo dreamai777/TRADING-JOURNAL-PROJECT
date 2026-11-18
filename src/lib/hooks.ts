@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
+import { academyXp } from "@/core/academy";
 import { traderProgress } from "@/core/game";
 import { computeAll, sliceRange, summarize } from "@/core/stats";
 import { useMe, useStore } from "./store";
@@ -13,7 +14,8 @@ export function useJournal() {
     const trades = computeAll(allTrades.filter((t) => t.userId === id));
     const setups = allSetups.filter((s) => s.userId === id);
     const account = me?.accountSize ?? 10000;
-    return { me, trades, setups, account, summary: summarize(trades, account), progress: traderProgress(trades) };
+    const bonusXp = academyXp({ trades, setups, testTaken: !!me?.traderProfile, lessonsDone: me?.lessonsDone ?? [] });
+    return { me, trades, setups, account, bonusXp, summary: summarize(trades, account), progress: traderProgress(trades, bonusXp) };
   }, [me, allTrades, allSetups]);
 }
 
