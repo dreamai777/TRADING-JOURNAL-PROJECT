@@ -17,11 +17,18 @@ const PALETTE: Record<JobClass, { body: string; trim: string; legs: string; boot
   sniper: { body: "#5a5a36", trim: "#fbbf24", legs: "#3f3f26", boots: "#2a2a18" },
 };
 
-/** tier: 0 = starter gear, 1 = adds a cape, 2 = legendary (gold trim, glowing weapon, crown). */
-export function CharacterSprite({ job, condition, size = 120, tier = 0 }: { job: JobClass; condition: Condition; size?: number; tier?: 0 | 1 | 2 }) {
+/** Equipped gear that changes the sprite: weapon glow (0..7 from tier + level), cloak and armor trim colors. */
+export interface SpriteGear { weaponGlow: number; weaponColor: string; cloak?: string; trim?: string }
+
+/**
+ * tier: 0 = starter gear, 1 = adds a cape, 2 = legendary (gold trim, glowing weapon, crown).
+ * The head and eyes follow the CSS variables --lx/--ly (-1..1), set by <LivingCharacter>.
+ */
+export function CharacterSprite({ job, condition, size = 120, tier = 0, gear }: { job: JobClass; condition: Condition; size?: number; tier?: 0 | 1 | 2; gear?: SpriteGear }) {
   const uid = useId().replace(/:/g, "");
-  const p = PALETTE[job];
-  const glow = JOB_GLOW[job];
+  const p = { ...PALETTE[job], trim: gear?.trim ?? PALETTE[job].trim };
+  const glow = gear?.weaponColor ?? JOB_GLOW[job];
+  const wg = gear ? gear.weaponGlow : tier === 2 ? 3 : 0;
   const sitting = condition === "resting" || condition === "burnout";
   return (
     <svg width={size} height={size * 1.2} viewBox="0 0 100 120" aria-hidden className="overflow-visible">
@@ -55,14 +62,15 @@ export function CharacterSprite({ job, condition, size = 120, tier = 0 }: { job:
       {condition === "strong" && <ellipse className="char-aura" cx="50" cy="70" rx="30" ry="40" fill="#2fe39a" opacity=".25" style={{ filter: "blur(8px)" }} />}
       {condition === "tilted" && <ellipse className="char-aura" cx="50" cy="70" rx="34" ry="44" fill="#ff5470" opacity=".4" style={{ filter: "blur(8px)" }} />}
       <ellipse cx="50" cy="113" rx="20" ry="3.5" fill="#000" opacity=".45" />
-      {tier === 2 && <ellipse className="char-aura" cx="50" cy="112" rx="26" ry="5" fill="none" stroke="#fbbf24" strokeWidth="1.4" strokeDasharray="3 2" />}
+      {(gear ? wg >= 4 : tier === 2) && <ellipse className="char-aura" cx="50" cy="112" rx="26" ry="5" fill="none" stroke={gear ? glow : "#fbbf24"} strokeWidth="1.4" strokeDasharray="3 2" />}
+      {gear && wg >= 2 && <ellipse cx="66" cy="66" rx={8 + wg * 2} ry={14 + wg * 2.5} fill={glow} opacity={Math.min(0.35, 0.06 + wg * 0.04)} className="char-aura" style={{ filter: "blur(6px)" }} />}
 
       {!sitting && [0, 1].map((i) => <circle key={`d${i}`} className="char-dust" cx={42 + i * 8} cy="110" r="2.2" fill="#8593a5" opacity=".0" style={{ animationDelay: `${i * 0.25}s` }} />)}
       <g filter={`url(#ol${uid})`}>
       <g className={sitting ? "" : "char-bob"}>
         {/* cape (tier 1+) */}
-        {tier >= 1 && job !== "wizard" && (
-          <path className="char-cape" d={sitting ? "M38 70 Q30 92 26 108 L60 108 Q58 90 62 70Z" : "M38 60 Q30 84 28 104 Q44 100 60 104 Q60 84 62 60Z"} fill={tier === 2 ? "#7f1d1d" : p.legs} stroke={tier === 2 ? "#fbbf24" : "none"} strokeWidth="1" />
+        {(tier >= 1 || gear?.cloak) && job !== "wizard" && (
+          <path className="char-cape" d={sitting ? "M38 70 Q30 92 26 108 L60 108 Q58 90 62 70Z" : "M38 60 Q30 84 28 104 Q44 100 60 104 Q60 84 62 60Z"} fill={gear?.cloak ?? (tier === 2 ? "#7f1d1d" : p.legs)} stroke={tier === 2 ? "#fbbf24" : "none"} strokeWidth="1" />
         )}
         {/* back weapon / gear */}
         {job === "archer" && (
@@ -116,6 +124,7 @@ export function CharacterSprite({ job, condition, size = 120, tier = 0 }: { job:
           <rect x="47" y="78" width="6" height="4" fill={p.trim} />
           </g>
 
+          <g className="char-head">
           {/* head */}
           {(job === "wizard" || job === "archer" || job === "sniper" || job === "warrior") && (
             <g fill={job === "wizard" ? "#cbd5e1" : "#5a3a24"}>
@@ -177,8 +186,10 @@ export function CharacterSprite({ job, condition, size = 120, tier = 0 }: { job:
           </g>
           {condition === "weak" && job !== "defender" && <rect x="38" y="36" width="26" height="4" rx="2" fill="#f5f5f4" transform="rotate(-12 51 38)" />}
 
-          {/* front arm + weapon */}
-          <g className={sitting ? "" : "char-arm"} style={{ filter: `url(#v${uid})${tier === 2 ? ` drop-shadow(0 0 4px ${glow})` : ""}` }}>
+          </g>
+
+          {/* front arm + weapon: the glow grows with the equipped weapon's tier and level */}
+          <g className={sitting ? "" : "char-arm"} style={{ filter: `url(#v${uid})${wg >= 1 ? ` drop-shadow(0 0 ${(1 + wg * 1.1).toFixed(1)}px ${glow})` : ""}${wg >= 4 ? ` drop-shadow(0 0 ${(wg * 1.6).toFixed(1)}px ${glow})` : ""}` }}>
             <rect x="61" y="60" width="7" height="20" rx="3.5" fill={p.body} />
             <circle cx="64.5" cy="80" r="3.5" fill={SKIN} />
             {job === "wizard" && (
@@ -219,11 +230,12 @@ export function CharacterSprite({ job, condition, size = 120, tier = 0 }: { job:
       </g>
 
       {tier === 2 && (
-        <g className="char-crown" transform={`translate(0 ${sitting ? 12 : 0})`}>
+        <g className="char-crown" transform={`translate(0 ${sitting ? 12 : 0})`}><g className="char-head">
           <path d={job === "wizard" ? "M42 -8 l4 6 5 -8 5 8 4 -6 -1.5 10 h-15z" : "M42 13 l4 6 5 -8 5 8 4 -6 -1.5 10 h-15z"} fill="#fbbf24" stroke="#b45309" strokeWidth=".6" />
-        </g>
+        </g></g>
       )}
       </g>
+      {gear && wg >= 5 && [[70, 30], [82, 58], [60, 22]].map(([x, y], k) => <path key={k} className="item-spark" style={{ animationDelay: `${k * 0.5}s` }} d={`M${x} ${y - 4} l1.1 2.9 2.9 1.1 -2.9 1.1 -1.1 2.9 -1.1 -2.9 -2.9 -1.1 2.9 -1.1z`} fill="#fff" />)}
       {/* effects */}
       {condition === "onfire" && [0, 1, 2, 3, 4].map((i) => <circle key={i} className="char-particle" cx={34 + i * 8} cy={98 - (i % 2) * 20} r="2.6" fill={i % 2 ? "#fb923c" : "#fbbf24"} style={{ animationDelay: `${i * 0.3}s` }} />)}
       {condition === "strong" && [0, 1, 2].map((i) => <path key={i} className="char-particle" d={`M${30 + i * 20} ${80 - i * 10} l2 4 4 1 -4 1 -2 4 -2 -4 -4 -1 4 -1z`} fill="#2fe39a" style={{ animationDelay: `${i * 0.5}s` }} />)}
@@ -275,7 +287,7 @@ function Face({ condition, job }: { condition: Condition; job: JobClass }) {
     <path d="M48.5 51.5 q3.5 -2 7 0" stroke={ink} strokeWidth="1.6" fill="none" strokeLinecap="round" />;
   return (
     <g>
-      <g className={condition === "resting" || condition === "burnout" ? "" : "char-blink"}>{eyes}</g>
+      <g className="char-eyes"><g className={condition === "resting" || condition === "burnout" ? "" : "char-blink"}>{eyes}</g></g>
       {job !== "assassin" && mouth}
       {condition === "tilted" && <><circle cx="44" cy="48" r="2.5" fill="#ff5470" opacity=".45" /><circle cx="60" cy="48" r="2.5" fill="#ff5470" opacity=".45" /></>}
     </g>

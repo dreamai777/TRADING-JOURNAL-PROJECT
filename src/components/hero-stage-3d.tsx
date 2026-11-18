@@ -151,7 +151,7 @@ export function HeroStage3D({ className = "", party = HERO_PARTY }: { className?
 
       // ── Heroes ────────────────────────────────────────────────
       const mixers: T.AnimationMixer[] = [];
-      const standIns: { g: T.Group; phase: number }[] = [];
+      const standIns: { g: T.Group; head: T.Group; phase: number; baseRot: number; emote: number; hover: number }[] = [];
       const loader = new GLTFLoader();
       const spacing = 1.25;
 
@@ -170,9 +170,15 @@ export function HeroStage3D({ className = "", party = HERO_PARTY }: { className?
         add(new THREE.CapsuleGeometry(0.2, 0.42, 8, 16), cloth, 0, 1.12, 0);
         add(new THREE.CylinderGeometry(0.24, 0.3, 0.42, 20, 1, true), cloth, 0, 0.78, 0); // tunic skirt
         add(new THREE.TorusGeometry(0.205, 0.03, 8, 24), trim, 0, 0.92, 0, Math.PI / 2); // belt
-        add(new THREE.SphereGeometry(0.15, 24, 18), skin, 0, 1.6, 0.01);
-        const hair = add(new THREE.SphereGeometry(0.158, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.55), mat(h.colors.hair, 0.55), 0, 1.62, -0.005);
+        // head on a neck pivot, so it can turn to look at the cursor
+        const head = new THREE.Group(); head.position.set(0, 1.46, 0); head.name = "head"; g.add(head);
+        const hm = (geo: ConstructorParameters<typeof T.Mesh>[0], m: T.Material, x: number, y: number, z: number) => { const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); mesh.castShadow = mesh.receiveShadow = true; head.add(mesh); return mesh; };
+        hm(new THREE.SphereGeometry(0.15, 24, 18), skin, 0, 0.14, 0.01);
+        const hair = hm(new THREE.SphereGeometry(0.158, 24, 18, 0, Math.PI * 2, 0, Math.PI * 0.55), mat(h.colors.hair, 0.55), 0, 0.16, -0.005);
         hair.rotation.x = -0.25;
+        const eye = mat("#1b1410", 0.3);
+        hm(new THREE.SphereGeometry(0.016, 10, 8), eye, -0.05, 0.15, 0.145);
+        hm(new THREE.SphereGeometry(0.016, 10, 8), eye, 0.05, 0.15, 0.145);
         add(new THREE.CapsuleGeometry(0.055, 0.5, 6, 12), cloth, -0.27, 1.08, 0, 0, 0.12);
         add(new THREE.CapsuleGeometry(0.055, 0.5, 6, 12), cloth, 0.27, 1.08, 0.04, -0.15, -0.1);
         // cloak
@@ -215,7 +221,7 @@ export function HeroStage3D({ className = "", party = HERO_PARTY }: { className?
         const x = (i - (party.length - 1) / 2) * spacing;
         const z = -Math.abs(i - (party.length - 1) / 2) * 0.35;
         const place = (obj: T.Object3D) => { obj.position.set(x, 0.23, z); obj.rotation.y = -x * 0.12; scene.add(obj); };
-        const fallback = () => { const g = standIn(h); place(g); standIns.push({ g, phase: i * 1.3 }); };
+        const fallback = () => { const g = standIn(h); place(g); g.userData.hero = standIns.length; standIns.push({ g, head: g.getObjectByName("head") as T.Group, phase: i * 1.3, baseRot: g.rotation.y, emote: -10, hover: 0 }); };
         if (!h.ready) return fallback();
         loader.load(h.file, (gltf) => {
           const m = gltf.scene;
@@ -234,8 +240,26 @@ export function HeroStage3D({ className = "", party = HERO_PARTY }: { className?
 
       // ── Loop ──────────────────────────────────────────────────
       const mouse = { x: 0, y: 0 };
-      const onMove = (e: PointerEvent) => { mouse.x = e.clientX / window.innerWidth - 0.5; mouse.y = e.clientY / window.innerHeight - 0.5; };
+      const ndc = new THREE.Vector2(), ray = new THREE.Raycaster();
+      let hovered = -1;
+      const pick = (e: PointerEvent) => {
+        const r = host.getBoundingClientRect();
+        ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+        ray.setFromCamera(ndc, camera);
+        const hit = ray.intersectObjects(standIns.map((s) => s.g), true)[0];
+        let o: T.Object3D | null = hit?.object ?? null;
+        while (o && o.userData.hero === undefined) o = o.parent;
+        return o ? (o.userData.hero as number) : -1;
+      };
+      const onMove = (e: PointerEvent) => {
+        mouse.x = e.clientX / window.innerWidth - 0.5; mouse.y = e.clientY / window.innerHeight - 0.5;
+        hovered = pick(e);
+        host.style.cursor = hovered >= 0 ? "pointer" : "";
+      };
+      // click a hero: it jumps and spins
+      const onDown = (e: PointerEvent) => { const k = pick(e); if (k >= 0) standIns[k].emote = clock.elapsedTime; };
       window.addEventListener("pointermove", onMove, { passive: true });
+      host.addEventListener("pointerdown", onDown);
       const resize = () => {
         const w = host.clientWidth, hgt = host.clientHeight;
         renderer.setSize(w, hgt, false);
@@ -259,7 +283,28 @@ export function HeroStage3D({ className = "", party = HERO_PARTY }: { className?
         camera.lookAt(target);
         mixers.forEach((m) => m.update(dt));
         if (!reduce) {
-          standIns.forEach(({ g, phase }) => { g.position.y = 0.23 + Math.sin(t * 1.6 + phase) * 0.006; g.rotation.z = Math.sin(t * 0.8 + phase) * 0.012; });
+          standIns.forEach((s, k) => {
+            const { g, head, phase } = s;
+            // the cursor in world space, roughly at chest height in front of the party
+            const tx = mouse.x * 9, ty = 1.4 - mouse.y * 3;
+            const dx = tx - g.position.x, dz = 6 - g.position.z;
+            const want = Math.atan2(dx, dz) - s.baseRot;
+            s.hover += ((hovered === k ? 1 : 0) - s.hover) * 0.15;
+            // body turns a little, head turns more
+            g.rotation.y += (s.baseRot + want * 0.25 - g.rotation.y) * 0.06;
+            if (head) {
+              head.rotation.y += (Math.max(-0.9, Math.min(0.9, want * 0.75)) - head.rotation.y) * 0.1;
+              head.rotation.x += (Math.max(-0.35, Math.min(0.35, -(ty - 1.6) * 0.18)) - head.rotation.x) * 0.1;
+            }
+            const e = (t - s.emote) / 0.9; // 0..1 while the emote plays
+            const jump = e >= 0 && e < 1 ? Math.sin(e * Math.PI) * 0.45 : 0;
+            const spin = e >= 0 && e < 1 ? e * Math.PI * 2 : 0;
+            g.position.y = 0.23 + Math.sin(t * 1.6 + phase) * 0.006 + jump + s.hover * 0.04;
+            g.rotation.z = Math.sin(t * 0.8 + phase) * 0.012;
+            if (spin) g.rotation.y = s.baseRot + want * 0.25 + spin;
+            const sc = (g.userData.s0 ??= g.scale.x) as number;
+            g.scale.setScalar(sc * (1 + s.hover * 0.04));
+          });
           const p = dustGeo.attributes.position as T.BufferAttribute;
           for (let i = 0; i < p.count; i++) { let y = p.getY(i) + dt * 0.08; if (y > 5) y = 0; p.setY(i, y); p.setX(i, p.getX(i) + Math.sin(t + i) * dt * 0.02); }
           p.needsUpdate = true;
@@ -271,6 +316,7 @@ export function HeroStage3D({ className = "", party = HERO_PARTY }: { className?
       cleanup = () => {
         cancelAnimationFrame(raf); ro.disconnect(); io.disconnect();
         window.removeEventListener("pointermove", onMove);
+        host.removeEventListener("pointerdown", onDown);
         renderer.dispose(); pmrem.dispose();
         scene.traverse((o) => { const m = o as T.Mesh; if (m.geometry) m.geometry.dispose(); });
         renderer.domElement.remove();

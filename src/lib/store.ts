@@ -32,6 +32,7 @@ interface State {
   saveTestResult: (r: TestResult) => void;
   completeLesson: (id: string, xp: number) => void;
   setPlan: (plan: "free" | "guild") => void;
+  equipItem: (slot: string, itemId: string | null) => void;
   hydrated: boolean;
   lastXpGain: { amount: number; at: number } | null;
   connections: Connection[];
@@ -94,6 +95,14 @@ export const useStore = create<State>()(
         lastXpGain: { amount: xp, at: Date.now() },
       })),
       setPlan: (plan) => set((s) => ({ users: s.users.map((u) => (u.id === s.sessionUserId ? { ...u, plan } : u)) })),
+      equipItem: (slot, itemId) => set((s) => ({
+        users: s.users.map((u) => {
+          if (u.id !== s.sessionUserId) return u;
+          const loadout = { ...(u.loadout ?? {}) } as Record<string, string>;
+          if (itemId) loadout[slot] = itemId; else delete loadout[slot];
+          return { ...u, loadout };
+        }),
+      })),
       hydrated: false,
       lastXpGain: null,
       connections: [],

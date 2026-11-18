@@ -2,20 +2,30 @@ import { ArrowRight, BookOpen, Brain, Crown, GraduationCap, LineChart, Lock, Plu
 import Link from "next/link";
 import { CharacterSprite } from "@/components/character-sprite";
 import { GearIcon } from "@/components/gear-icon";
+import { ItemIcon } from "@/components/item-icon";
+import { LivingCharacter } from "@/components/living-character";
 import { GlowTracker } from "@/components/landing/glow";
 import { CoachTeaser, LiveCalendar, LiveChart, LivePortfolio } from "@/components/landing/live-widgets";
 import { WorldScene } from "@/components/landing/world-scene";
 import { Logo } from "@/components/logo";
 import { JOBS } from "@/core/character";
 import { GEAR_TIERS } from "@/core/gear";
+import { ITEMS, ITEM_BY_ID } from "@/core/items";
 import type { JobClass } from "@/core/types";
 
-const PARTY: { job: JobClass; size: number; tier: 0 | 1 | 2; hideSm?: boolean }[] = [
-  { job: "archer", size: 110, tier: 1, hideSm: true },
-  { job: "wizard", size: 130, tier: 2 },
-  { job: "warrior", size: 180, tier: 2 },
-  { job: "sniper", size: 130, tier: 2 },
-  { job: "assassin", size: 110, tier: 1, hideSm: true },
+/** Demo party: each hero carries a weapon at a different gear tier (glow 0..7). */
+const PARTY: { job: JobClass; size: number; tier: 0 | 1 | 2; glow: number; hideSm?: boolean }[] = [
+  { job: "archer", size: 110, tier: 1, glow: 3.4, hideSm: true },
+  { job: "wizard", size: 130, tier: 2, glow: 5.5 },
+  { job: "warrior", size: 180, tier: 2, glow: 6.9 },
+  { job: "sniper", size: 130, tier: 2, glow: 4.6 },
+  { job: "assassin", size: 110, tier: 1, glow: 2.3, hideSm: true },
+];
+
+/** A spread of catalog items shown on the landing page, one per tier and slot mix. */
+const SHOWCASE: [string, number][] = [
+  ["stoploss-signet", 0], ["trailworn-boots", 1], ["vanguard-buckler", 2], ["snapback-kris", 3], ["starweave-hat", 3], ["windrider-bow", 4],
+  ["volume-sigil", 4], ["crested-greathelm", 5], ["stormbreak-staff", 5], ["heartstone-of-calm", 5], ["oathbrand-of-the-first-charge", 6], ["zero-spread-the-last-bolt", 6],
 ];
 
 const BOSSES = [
@@ -122,7 +132,7 @@ export default function Home() {
           <div className="flex items-end justify-center gap-1 sm:gap-4">
             {PARTY.map((p) => (
               <div key={p.job} className={`relative ${p.hideSm ? "hidden sm:block" : ""}`}>
-                <CharacterSprite job={p.job} condition={p.job === "warrior" ? "onfire" : "strong"} size={p.size} tier={p.tier} />
+                <LivingCharacter job={p.job} condition={p.job === "warrior" ? "onfire" : "strong"} size={p.size} tier={p.tier} gear={{ weaponGlow: p.glow, weaponColor: GEAR_TIERS[Math.floor(p.glow)].color }} />
               </div>
             ))}
           </div>
@@ -150,7 +160,7 @@ export default function Home() {
             return (
               <div key={id} tabIndex={0} className="chrome group rounded-2xl border border-line bg-surface p-4 sm:p-5" style={{ background: `radial-gradient(120% 80% at 50% 0%, ${j.color}1f, transparent 60%), var(--surface)` }}>
                 <div className="flex h-[120px] items-end justify-center transition duration-300 group-hover:-translate-y-1 sm:h-[150px]">
-                  <CharacterSprite job={id} condition="strong" size={110} tier={2} />
+                  <LivingCharacter job={id} condition="strong" size={110} tier={2} />
                 </div>
                 <div className="mt-3 font-display text-lg font-bold" style={{ color: j.color }}>{j.name}</div>
                 <div className="text-xs font-semibold text-ink/80">{j.style}</div>
@@ -200,6 +210,26 @@ export default function Home() {
               </div>
             </div>
           ))}
+        </div>
+        <div className="chrome mt-6 rounded-2xl border border-line bg-surface p-5 sm:p-6">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-[.18em] text-gold">The Armory</div>
+              <div className="font-display text-xl font-bold sm:text-2xl">{ITEMS.length} named items. Every one levels up.</div>
+              <p className="mt-1 max-w-2xl text-sm text-muted">Weapons, helms, armor, cloaks, boots, off-hands and trinkets for all six classes. Each is bound to a setup type and climbs from Basic to God on that setup&apos;s win rate. The higher the tier and level, the brighter it glows on your hero.</p>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6 lg:grid-cols-12">
+            {SHOWCASE.map(([id, t]) => {
+              const it = ITEM_BY_ID[id];
+              return (
+                <div key={id} className="flex flex-col items-center rounded-xl bg-surface-2 p-2 text-center" title={it.name}>
+                  <ItemIcon art={it.art} tierIndex={t} glow={t + 0.6} size={56} />
+                  <div className="mt-1 line-clamp-2 text-[10px] font-semibold leading-tight" style={{ color: GEAR_TIERS[t].color }}>{it.name}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </Section>
 

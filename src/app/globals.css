@@ -159,3 +159,38 @@ input[type="range"] { accent-color: var(--accent); }
 @keyframes scroll-cue { 0% { transform: translateY(0); opacity: 0 } 40% { opacity: 1 } 100% { transform: translateY(10px); opacity: 0 } }
 .scroll-cue { animation: scroll-cue 1.8s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .god-tier, .live-dot, .float-y, .scroll-cue, .chrome-flash { animation: none !important; } }
+
+/* ── Living characters: cursor look-at, notice, emotes ── */
+.living { position: relative; display: inline-block; --lx: 0; --ly: 0; outline: none; }
+.living:focus-visible { outline: 2px solid var(--color-accent, #c8f53b); outline-offset: 4px; border-radius: 12px; }
+.living-tilt { perspective: 600px; transition: transform .35s cubic-bezier(.2,.8,.2,1); transform: perspective(600px) rotateY(calc(var(--lx) * 14deg)) rotateX(calc(var(--ly) * -6deg)); transform-style: preserve-3d; }
+.char-head { transform: translate(calc(var(--lx, 0) * 2.4px), calc(var(--ly, 0) * 1.4px)) rotate(calc(var(--lx, 0) * 4deg)); transform-origin: 51px 56px; transition: transform .25s ease-out; }
+.char-eyes { transform: translate(calc(var(--lx, 0) * 1.6px), calc(var(--ly, 0) * 1.2px)); transition: transform .18s ease-out; }
+.living-notice .living-tilt { transform: perspective(600px) rotateY(calc(var(--lx) * 14deg)) rotateX(calc(var(--ly) * -6deg)) translateY(-4px) scale(1.04); }
+.living-mark { animation: living-mark .5s cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes living-mark { from { transform: translate(-50%, 10px) scale(.2); opacity: 0 } to { transform: translate(-50%, -6px) scale(1); opacity: 1 } }
+.emote-cheer { animation: emote-cheer 1s cubic-bezier(.3,1.4,.5,1); transform-origin: 50% 100%; }
+@keyframes emote-cheer { 0% { transform: none } 25% { transform: translateY(-22px) scale(1.05, .96) } 45% { transform: translateY(0) scale(1.08, .9) } 65% { transform: translateY(-12px) } 100% { transform: none } }
+.emote-hop { animation: emote-hop .6s ease-out; transform-origin: 50% 100%; }
+@keyframes emote-hop { 0%, 100% { transform: none } 30% { transform: scale(1.06, .92) } 55% { transform: translateY(-10px) } }
+.emote-spin { animation: emote-spin .9s cubic-bezier(.5,0,.3,1); }
+@keyframes emote-spin { from { transform: perspective(600px) rotateY(0) } to { transform: perspective(600px) rotateY(360deg) } }
+.emote-flourish .char-arm { animation: emote-flourish 1s cubic-bezier(.3,1.3,.5,1) !important; }
+.emote-flourish { animation: emote-hop .6s ease-out .1s; transform-origin: 50% 100%; }
+@keyframes emote-flourish { 0% { transform: none } 30% { transform: rotate(-70deg) } 60% { transform: rotate(25deg) } 100% { transform: none } }
+.emote-burst { position: absolute; left: 50%; top: 45%; width: 6px; height: 6px; border-radius: 9999px; box-shadow: 0 0 10px currentColor; animation: emote-burst .8s ease-out forwards; }
+@keyframes emote-burst { from { transform: rotate(var(--a)) translateY(0) scale(1); opacity: 1 } to { transform: rotate(var(--a)) translateY(-60px) scale(.2); opacity: 0 } }
+
+/* ── Item glow ── */
+.item-halo { transform-box: fill-box; transform-origin: center; animation: item-halo var(--pulse, 3s) ease-in-out infinite; }
+@keyframes item-halo { 0%, 100% { opacity: .7; transform: scale(.94) } 50% { opacity: 1; transform: scale(1.06) } }
+.item-orbit { transform-box: fill-box; transform-origin: center; animation: item-orbit 14s linear infinite; }
+@keyframes item-orbit { to { transform: rotate(360deg) } }
+.item-gem { animation: item-gem 2.2s ease-in-out infinite; }
+@keyframes item-gem { 0%, 100% { filter: brightness(1) } 50% { filter: brightness(1.6) } }
+.item-spark { transform-box: fill-box; transform-origin: center; animation: item-spark 1.8s ease-in-out infinite; }
+@keyframes item-spark { 0%, 100% { opacity: 0; transform: scale(.3) } 50% { opacity: 1; transform: scale(1) } }
+@media (prefers-reduced-motion: reduce) {
+  .living-tilt, .char-head, .char-eyes { transform: none !important; transition: none !important; }
+  .emote-cheer, .emote-hop, .emote-spin, .emote-flourish, .emote-flourish .char-arm, .emote-burst, .living-mark, .item-halo, .item-orbit, .item-gem, .item-spark { animation: none !important; }
+}

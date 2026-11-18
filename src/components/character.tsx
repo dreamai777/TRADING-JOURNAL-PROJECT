@@ -3,8 +3,10 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { JOBS, STAT_INFO, characterState, recommendJob, type StatKey } from "@/core/character";
+import { itemStates, resolveLoadout } from "@/core/items";
 import { useJournal } from "@/lib/hooks";
-import { CharacterSprite } from "./character-sprite";
+import type { SpriteGear } from "./character-sprite";
+import { LivingCharacter } from "./living-character";
 import { Card, Progress, cn } from "./ui";
 
 export function useCharacter() {
@@ -16,6 +18,23 @@ export function useCharacter() {
     const job = j.me?.jobClass ?? recommended;
     return { ...j, job, recommended, chosen: !!j.me?.jobClass, c: characterState(j.trades, j.account, job, now, j.bonusXp) };
   }, [j, now]);
+}
+
+/** Item states for the signed-in trader, their equipped loadout, and the look it gives the character. */
+export function useArmory() {
+  const ch = useCharacter();
+  return useMemo(() => {
+    const states = itemStates(ch.trades, ch.setups);
+    const equipped = resolveLoadout(states, ch.job, ch.me?.loadout);
+    const w = equipped.weapon, cl = equipped.cloak, ar = equipped.armor;
+    const gear: SpriteGear = {
+      weaponGlow: w?.glow ?? 0,
+      weaponColor: w?.tier.color ?? "#8b95a5",
+      cloak: cl ? cl.tier.color + (cl.tierIndex >= 3 ? "" : "cc") : undefined,
+      trim: ar && ar.tierIndex >= 2 ? ar.tier.color : undefined,
+    };
+    return { ...ch, states, equipped, gear };
+  }, [ch]);
 }
 
 const SPEED: Record<string, { dur: string; step: string }> = {
@@ -30,7 +49,7 @@ const SPEED: Record<string, { dur: string; step: string }> = {
 
 /** A small scene where the character patrols, emotes and reacts to recent trading. */
 export function CharacterArena({ height = 210, big = false }: { height?: number; big?: boolean }) {
-  const { job, c } = useCharacter();
+  const { job, c, gear } = useArmory();
   const [line, setLine] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setLine((l) => l + 1), 4200);
@@ -64,7 +83,7 @@ export function CharacterArena({ height = 210, big = false }: { height?: number;
             <span className="absolute -bottom-1 left-8 h-2 w-2 rotate-45 border-b border-r border-line-strong bg-surface-2" />
           </div>
           <div className="char-flip">
-            <CharacterSprite job={job} condition={c.condition} size={big ? 120 : 92} tier={c.tier as 0 | 1 | 2} />
+            <LivingCharacter job={job} condition={c.condition} size={big ? 120 : 92} tier={c.tier as 0 | 1 | 2} gear={gear} />
           </div>
         </div>
       </div>

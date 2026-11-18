@@ -47,6 +47,8 @@ export interface User {
   /** Academy lesson ids completed. */
   lessonsDone?: string[];
   plan?: "free" | "guild";
+  /** Equipped item id per slot (see core/items.ts). */
+  loadout?: Partial<Record<"weapon" | "offhand" | "helm" | "armor" | "cloak" | "boots" | "trinket", string>>;
 }
 
 export type JobClass = "wizard" | "warrior" | "assassin" | "archer" | "defender" | "sniper";

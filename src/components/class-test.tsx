@@ -6,7 +6,7 @@ import { JOBS } from "@/core/character";
 import { QUESTIONS, SKILLS, TRADER_TYPES, pathQuests, scoreTest, studyPath, type SkillId, type TestResult, type TraderTypeId } from "@/core/trader-test";
 import { useStore } from "@/lib/store";
 import { ScoreRadar } from "./charts";
-import { CharacterSprite } from "./character-sprite";
+import { LivingCharacter } from "./living-character";
 import { cn } from "./ui";
 
 /** The question flow. One question at a time, auto-advances, can go back. */
@@ -61,7 +61,7 @@ export function TestResultView({ r, compact = false, onRetake }: { r: TestResult
       {/* Hero result */}
       <div className="chrome overflow-hidden rounded-2xl border border-line p-5 sm:p-6" style={{ background: `radial-gradient(90% 90% at 0% 0%, ${job.color}26, transparent 60%), var(--surface)` }}>
         <div className="grid items-center gap-5 sm:grid-cols-[auto_1fr]">
-          <div className="flex justify-center"><CharacterSprite job={t.job} condition="onfire" size={compact ? 110 : 150} tier={2} /></div>
+          <div className="flex justify-center"><LivingCharacter job={t.job} condition="onfire" size={compact ? 110 : 150} tier={2} gear={{ weaponGlow: 5.5, weaponColor: "#fb923c" }} /></div>
           <div>
             <div className="text-[11px] font-bold uppercase tracking-[.2em]" style={{ color: job.color }}>Your trader class</div>
             <div className="mt-1 font-display text-3xl font-bold">{t.icon} {t.name}</div>
