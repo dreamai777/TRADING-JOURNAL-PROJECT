@@ -7,6 +7,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { DEMO_ADMIN_ID, DEMO_TRADER_ID, demoSetups, demoTrades, demoUsers } from "@/core/demo";
 import { uid } from "@/core/random";
 import type { RangeKey } from "@/core/stats";
+import type { TestResult } from "@/core/trader-test";
 import type { CurrencyCode, JobClass, Role, Setup, Trade, User } from "@/core/types";
 
 export interface Connection {
@@ -26,6 +27,9 @@ interface State {
   range: RangeKey;
   setRange: (r: RangeKey) => void;
   setJobClass: (j: JobClass) => void;
+  /** Test result kept for a guest until they sign up or log in. */
+  pendingTest: TestResult | null;
+  saveTestResult: (r: TestResult) => void;
   hydrated: boolean;
   lastXpGain: { amount: number; at: number } | null;
   connections: Connection[];
@@ -81,6 +85,8 @@ export const useStore = create<State>()(
       range: "ALL",
       setRange: (range) => set({ range }),
       setJobClass: (jobClass) => set((s) => ({ users: s.users.map((u) => (u.id === s.sessionUserId ? { ...u, jobClass } : u)) })),
+      pendingTest: null,
+      saveTestResult: (r) => set((s) => (s.sessionUserId ? { users: s.users.map((u) => (u.id === s.sessionUserId ? { ...u, traderProfile: r } : u)), pendingTest: null } : { pendingTest: r })),
       hydrated: false,
       lastXpGain: null,
       connections: [],
@@ -107,14 +113,15 @@ export const useStore = create<State>()(
         // Prototype auth: demo password for seeded users, any 8+ char password for local signups.
         if (password.length < 8) return { ok: false, error: "Wrong password." };
         if (user.id.startsWith("u_") && !user.id.startsWith("u_local") && password !== DEMO_PASSWORD) return { ok: false, error: "Wrong password. Demo accounts use demo1234." };
-        set({ sessionUserId: user.id, currency: user.baseCurrency });
+        const pending = get().pendingTest;
+        set((s) => ({ sessionUserId: user.id, currency: user.baseCurrency, pendingTest: null, users: pending ? s.users.map((u) => (u.id === user.id ? { ...u, traderProfile: pending } : u)) : s.users }));
         return { ok: true, user };
       },
       signup(name, email, password) {
         if (get().users.some((u) => u.email.toLowerCase() === email.toLowerCase())) return { ok: false, error: "Email already registered." };
         if (password.length < 8) return { ok: false, error: "Password must be at least 8 characters." };
-        const user: User = { id: uid("u_local"), name, email, role: "user", baseCurrency: "USD", accountSize: 10000, createdAt: new Date().toISOString(), avatar: "🐲", status: "active" };
-        set((s) => ({ users: [...s.users, user], sessionUserId: user.id }));
+        const user: User = { id: uid("u_local"), name, email, role: "user", baseCurrency: "USD", accountSize: 10000, createdAt: new Date().toISOString(), avatar: "🐲", status: "active", traderProfile: get().pendingTest ?? undefined };
+        set((s) => ({ users: [...s.users, user], sessionUserId: user.id, pendingTest: null }));
         return { ok: true };
       },
       logout: () => set({ sessionUserId: null }),
@@ -155,7 +162,7 @@ export const useStore = create<State>()(
       name: "edgeforge-v2",
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
-      partialize: (s) => ({ users: s.users, trades: s.trades, setups: s.setups, sessionUserId: s.sessionUserId, currency: s.currency, connections: s.connections, range: s.range }),
+      partialize: (s) => ({ users: s.users, trades: s.trades, setups: s.setups, sessionUserId: s.sessionUserId, currency: s.currency, connections: s.connections, range: s.range, pendingTest: s.pendingTest }),
     },
   ),
 );

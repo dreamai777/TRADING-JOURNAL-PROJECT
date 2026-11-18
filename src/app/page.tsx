@@ -166,7 +166,7 @@ export default function Home() {
             <div className="font-display font-bold">Not sure? Take the Trader Class Test</div>
             <div className="text-sm text-muted">Find out if you&apos;re a scalper, day trader, momentum, swing, position trader or investor, with a chart of your strengths and weaknesses and a study path built for you.</div>
           </div>
-          <span className="shrink-0 rounded-lg border border-violet/40 px-3 py-2 text-xs font-bold text-violet">Coming next</span>
+          <Link href="/class-test" className="shrink-0 rounded-lg bg-violet px-4 py-2 text-sm font-bold text-bg">Take the test</Link>
         </div>
       </Section>
 

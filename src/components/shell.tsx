@@ -10,6 +10,7 @@ import { useStore } from "@/lib/store";
 import { Logo } from "./logo";
 import { QuickSnap } from "./quick-snap";
 import { Progress, cn } from "./ui";
+import { GlowTracker } from "./landing/glow";
 
 const NAV = [
   { href: "/dashboard", label: "Command Center", short: "Home", icon: LayoutDashboard },
@@ -66,6 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
+      <GlowTracker />
       {/* Sidebar */}
       <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col border-r border-line bg-surface/60 lg:flex">
         <div className="px-5 pt-5 pb-4">

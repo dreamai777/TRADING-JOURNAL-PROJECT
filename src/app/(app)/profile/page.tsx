@@ -6,6 +6,8 @@ import { CONDITIONS, JOBS, STAT_INFO, type StatKey } from "@/core/character";
 import { RANKS, badges, journalStreak, xpBreakdown } from "@/core/game";
 import type { JobClass } from "@/core/types";
 import { useStore } from "@/lib/store";
+import { TestResultView } from "@/components/class-test";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const { me, trades, setups, job, recommended, c, summary } = useCharacter();
@@ -36,6 +38,22 @@ export default function ProfilePage() {
           </div>
         </div>
       </Card>
+
+      <div className="mt-4">
+        {me.traderProfile ? (
+          <TestResultView r={me.traderProfile} compact />
+        ) : (
+          <Card className="chrome flex flex-col items-center gap-3 p-5 text-center sm:flex-row sm:text-left">
+            <div className="text-3xl">🧭</div>
+            <div className="flex-1">
+              <div className="font-display font-bold">Take the Trader Class Test</div>
+              <div className="text-sm text-muted">3 minutes. Find your trading style, see your strengths and weaknesses, and get a study path built for you.</div>
+            </div>
+            <Link href="/class-test" className="rounded-lg bg-accent px-4 py-2 text-sm font-bold text-accent-ink">Start the test</Link>
+          </Card>
+        )}
+        {me.traderProfile && <div className="mt-2 text-right text-xs"><Link href="/class-test" className="text-accent">Retake the class test</Link></div>}
+      </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1.3fr]">
         <Card>
