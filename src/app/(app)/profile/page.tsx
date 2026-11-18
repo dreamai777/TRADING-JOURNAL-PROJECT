@@ -6,6 +6,7 @@ import { CONDITIONS, JOBS, STAT_INFO, type StatKey } from "@/core/character";
 import { RANKS, badges, journalStreak, xpBreakdown } from "@/core/game";
 import type { JobClass } from "@/core/types";
 import { useStore } from "@/lib/store";
+import { LESSONS } from "@/core/academy";
 import { TestResultView } from "@/components/class-test";
 import Link from "next/link";
 
@@ -13,7 +14,7 @@ export default function ProfilePage() {
   const { me, trades, setups, job, recommended, c, summary } = useCharacter();
   const setJobClass = useStore((s) => s.setJobClass);
   if (!me) return null;
-  const trophies = badges(trades, setups);
+  const trophies = badges(trades, setups, { testTaken: !!me.traderProfile, lessonsDone: me.lessonsDone?.length ?? 0, freeLessons: LESSONS.filter((l) => l.tier === "free").length });
   const recent = [...trades].reverse().slice(0, 10);
 
   return (

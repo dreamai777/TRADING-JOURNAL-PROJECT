@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Button, Card, CardHeader, Input, Label, Modal, Money, PageHeader, Pill, Progress, Segmented, Select, Textarea, cn, fmtNum, fmtPct } from "@/components/ui";
 import { RARITIES, badges, weaponStats } from "@/core/game";
 import type { AssetClass, Setup, WeaponClass } from "@/core/types";
+import { LESSONS } from "@/core/academy";
 import { useJournal } from "@/lib/hooks";
 import { useStore } from "@/lib/store";
 
@@ -13,7 +14,7 @@ const MARKETS: AssetClass[] = ["crypto", "forex", "futures", "equities", "option
 const MAX_EQUIPPED = 4;
 
 export default function ArsenalPage() {
-  const { trades, setups } = useJournal();
+  const { trades, setups, me } = useJournal();
   const saveSetup = useStore((s) => s.saveSetup);
   const [editing, setEditing] = useState<Setup | "new" | null>(null);
   const [filter, setFilter] = useState<"all" | "equipped">("all");
@@ -23,7 +24,7 @@ export default function ArsenalPage() {
   );
   const shown = filter === "equipped" ? weapons.filter((x) => x.setup.equipped) : weapons;
   const equippedCount = setups.filter((s) => s.equipped).length;
-  const trophies = badges(trades, setups);
+  const trophies = badges(trades, setups, { testTaken: !!me?.traderProfile, lessonsDone: me?.lessonsDone?.length ?? 0, freeLessons: LESSONS.filter((l) => l.tier === "free").length });
 
   function toggleEquip(s: Setup) {
     if (!s.equipped && equippedCount >= MAX_EQUIPPED) return;

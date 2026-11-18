@@ -44,6 +44,9 @@ export interface User {
   title?: string;
   /** Latest Trader Class Test result. */
   traderProfile?: TestResult;
+  /** Academy lesson ids completed. */
+  lessonsDone?: string[];
+  plan?: "free" | "guild";
 }
 
 export type JobClass = "wizard" | "warrior" | "assassin" | "archer" | "defender" | "sniper";

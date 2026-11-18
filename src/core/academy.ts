@@ -3,6 +3,7 @@
 // which is how the class test builds a personal study path.
 
 import type { SkillId, TraderTypeId } from "./trader-test";
+import type { Setup, TradeComputed } from "./types";
 
 export type LessonTier = "free" | "premium";
 
@@ -55,3 +56,52 @@ export const LESSONS: Lesson[] = [
 ];
 
 export const lessonById = (id: string) => LESSONS.find((l) => l.id === id);
+
+// ── Academy quest line ───────────────────────────────────────────────────────
+// Free lessons unlock as quests are completed, so learning follows real journaling habits.
+
+
+export interface AcademyCtx { trades: TradeComputed[]; setups: Setup[]; testTaken: boolean; lessonsDone: string[] }
+
+export interface AcademyQuest {
+  id: string;
+  title: string;
+  goal: number;
+  xp: number;
+  unlocks: string[];
+  progress: (c: AcademyCtx) => number;
+}
+
+export const ACADEMY_QUESTS: AcademyQuest[] = [
+  { id: "aq-enter", title: "Enter the Academy", goal: 1, xp: 0, unlocks: ["f-market-structure", "f-candles-volume", "v-journal"], progress: () => 1 },
+  { id: "aq-class", title: "Take the Trader Class Test", goal: 1, xp: 100, unlocks: ["f-r-multiples", "s-swing", "s-investor"], progress: (c) => (c.testTaken ? 1 : 0) },
+  { id: "aq-first", title: "Journal your first trade", goal: 1, xp: 50, unlocks: ["f-orders", "r-position-size"], progress: (c) => Math.min(1, c.trades.length) },
+  { id: "aq-stops", title: "Log 5 trades with a stop loss", goal: 5, xp: 100, unlocks: ["r-stops", "r-leverage"], progress: (c) => Math.min(5, c.trades.filter((t) => t.stopLoss != null).length) },
+  { id: "aq-mood", title: "Tag your emotion on 5 trades", goal: 5, xp: 80, unlocks: ["m-revenge", "m-fomo"], progress: (c) => Math.min(5, c.trades.filter((t) => t.emotion).length) },
+  { id: "aq-spell", title: "Write a setup in your Spellbook", goal: 1, xp: 100, unlocks: ["e-rules", "e-checklist"], progress: (c) => Math.min(1, c.setups.length) },
+  { id: "aq-study", title: "Finish 3 lessons", goal: 3, xp: 120, unlocks: ["m-routine", "e-patience"], progress: (c) => Math.min(3, c.lessonsDone.length) },
+  { id: "aq-25", title: "Journal 25 trades", goal: 25, xp: 200, unlocks: ["v-weekly"], progress: (c) => Math.min(25, c.trades.length) },
+];
+
+export const lessonXp = (l: Lesson) => l.minutes * 10;
+
+/** Which quest unlocks a free lesson (premium lessons are unlocked by the Guild plan instead). */
+export const unlockQuestOf = (lessonId: string) => ACADEMY_QUESTS.find((q) => q.unlocks.includes(lessonId));
+
+export function academyState(c: AcademyCtx, premium = false) {
+  const quests = ACADEMY_QUESTS.map((q) => { const p = q.progress(c); return { ...q, value: p, done: p >= q.goal }; });
+  const done = new Set(quests.filter((q) => q.done).flatMap((q) => q.unlocks));
+  const lessons = LESSONS.map((l) => {
+    const unlocked = l.tier === "premium" ? premium : done.has(l.id);
+    return { ...l, unlocked, completed: c.lessonsDone.includes(l.id), quest: unlockQuestOf(l.id) };
+  });
+  const free = lessons.filter((l) => l.tier === "free");
+  return { quests, lessons, freeDone: free.filter((l) => l.completed).length, freeTotal: free.length };
+}
+
+/** Bonus XP from the Academy: completed lessons plus finished academy quests. */
+export function academyXp(c: AcademyCtx) {
+  const lessons = LESSONS.filter((l) => c.lessonsDone.includes(l.id)).reduce((a, l) => a + lessonXp(l), 0);
+  const quests = ACADEMY_QUESTS.filter((q) => q.progress(c) >= q.goal).reduce((a, q) => a + q.xp, 0);
+  return lessons + quests;
+}

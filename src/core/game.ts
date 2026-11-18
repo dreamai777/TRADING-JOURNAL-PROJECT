@@ -31,8 +31,8 @@ export function tradeXp(t: TradeComputed) {
   return Math.max(0, xpBreakdown(t).reduce((a, b) => a + b.xp, 0));
 }
 
-export function traderProgress(trades: TradeComputed[]) {
-  const xp = trades.reduce((a, t) => a + tradeXp(t), 0) + journalStreak(trades) * 15;
+export function traderProgress(trades: TradeComputed[], bonusXp = 0) {
+  const xp = trades.reduce((a, t) => a + tradeXp(t), 0) + journalStreak(trades) * 15 + bonusXp;
   let idx = 0;
   for (let i = 0; i < RANKS.length; i++) if (xp >= RANKS[i].min) idx = i;
   const rank = RANKS[idx];
@@ -95,7 +95,7 @@ export interface Badge {
   unlocked: boolean;
 }
 
-export function badges(trades: TradeComputed[], setups: Setup[]): Badge[] {
+export function badges(trades: TradeComputed[], setups: Setup[], extra: { testTaken?: boolean; lessonsDone?: number; freeLessons?: number } = {}): Badge[] {
   const s = summarize(trades);
   const streak = journalStreak(trades);
   const def = (id: string, name: string, icon: string, description: string, unlocked: boolean): Badge => ({ id, name, icon, description, unlocked });
@@ -110,6 +110,9 @@ export function badges(trades: TradeComputed[], setups: Setup[]): Badge[] {
     def("survivor", "Survivor", "🪖", "Keep max drawdown under 10% over 50 trades", trades.length >= 50 && s.maxDrawdownPct < 0.1),
     def("multi-asset", "Polymath", "🌐", "Trade 3+ asset classes", new Set(trades.map((t) => t.assetClass)).size >= 3),
     def("legendary", "Legendary Smith", "👑", "Forge a Legendary weapon", setups.some((st) => weaponStats(st, trades).rarityIndex === 4)),
+    def("know-thyself", "Know Thyself", "🧭", "Take the Trader Class Test", !!extra.testTaken),
+    def("scholar", "Scholar", "📜", "Finish 5 Academy lessons", (extra.lessonsDone ?? 0) >= 5),
+    def("graduate", "Graduate", "🎓", "Finish every free Academy lesson", !!extra.freeLessons && (extra.lessonsDone ?? 0) >= extra.freeLessons),
   ];
 }
 

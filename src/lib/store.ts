@@ -30,6 +30,8 @@ interface State {
   /** Test result kept for a guest until they sign up or log in. */
   pendingTest: TestResult | null;
   saveTestResult: (r: TestResult) => void;
+  completeLesson: (id: string, xp: number) => void;
+  setPlan: (plan: "free" | "guild") => void;
   hydrated: boolean;
   lastXpGain: { amount: number; at: number } | null;
   connections: Connection[];
@@ -87,6 +89,11 @@ export const useStore = create<State>()(
       setJobClass: (jobClass) => set((s) => ({ users: s.users.map((u) => (u.id === s.sessionUserId ? { ...u, jobClass } : u)) })),
       pendingTest: null,
       saveTestResult: (r) => set((s) => (s.sessionUserId ? { users: s.users.map((u) => (u.id === s.sessionUserId ? { ...u, traderProfile: r } : u)), pendingTest: null } : { pendingTest: r })),
+      completeLesson: (id, xp) => set((s) => ({
+        users: s.users.map((u) => (u.id === s.sessionUserId && !(u.lessonsDone ?? []).includes(id) ? { ...u, lessonsDone: [...(u.lessonsDone ?? []), id] } : u)),
+        lastXpGain: { amount: xp, at: Date.now() },
+      })),
+      setPlan: (plan) => set((s) => ({ users: s.users.map((u) => (u.id === s.sessionUserId ? { ...u, plan } : u)) })),
       hydrated: false,
       lastXpGain: null,
       connections: [],

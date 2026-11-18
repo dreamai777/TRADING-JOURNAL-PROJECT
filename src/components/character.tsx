@@ -14,7 +14,7 @@ export function useCharacter() {
     const cls = (id?: string) => j.setups.find((s) => s.id === id)?.weaponClass;
     const recommended = recommendJob(j.trades, cls);
     const job = j.me?.jobClass ?? recommended;
-    return { ...j, job, recommended, chosen: !!j.me?.jobClass, c: characterState(j.trades, j.account, job, now) };
+    return { ...j, job, recommended, chosen: !!j.me?.jobClass, c: characterState(j.trades, j.account, job, now, j.bonusXp) };
   }, [j, now]);
 }
 
