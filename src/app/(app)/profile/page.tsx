@@ -3,7 +3,8 @@ import { Bars, CharacterArena, useCharacter } from "@/components/character";
 import { CharacterSprite } from "@/components/character-sprite";
 import { Card, CardHeader, Money, PageHeader, Progress, cn, fmtDateTime, fmtPct } from "@/components/ui";
 import { CONDITIONS, JOBS, STAT_INFO, type StatKey } from "@/core/character";
-import { RANKS, badges, journalStreak, xpBreakdown } from "@/core/game";
+import { RANKS, badges, journalStreak, weaponStats, xpBreakdown } from "@/core/game";
+import { GearIcon } from "@/components/gear-icon";
 import type { JobClass } from "@/core/types";
 import { useStore } from "@/lib/store";
 import { LESSONS } from "@/core/academy";
@@ -113,6 +114,23 @@ export default function ProfilePage() {
               </div>
             );
           })}
+        </div>
+      </Card>
+
+      <Card className="mt-4">
+        <CardHeader title="Equipment" subtitle="Each setup is a weapon. It climbs Basic → Common → Uncommon → Rare → Mythical → Legendary → God as its win rate, profit factor and discipline hold up over more trades." right={<Link href="/spellbook" className="text-xs font-semibold text-accent">Spellbook</Link>} />
+        <div className="grid gap-3 px-5 pb-5 sm:grid-cols-2 xl:grid-cols-4">
+          {[...setups].map((s) => ({ s, w: weaponStats(s, trades) })).sort((a, b) => b.w.rarityIndex - a.w.rarityIndex).slice(0, 8).map(({ s, w }) => (
+            <div key={s.id} className="chrome flex items-center gap-3 rounded-xl border p-3" style={{ borderColor: `${w.rarity.color}40`, background: `radial-gradient(80% 80% at 0% 50%, ${w.rarity.glow}, transparent 70%), var(--surface-2)` }}>
+              <GearIcon tier={w.tier} index={w.rarityIndex} size={56} />
+              <div className="min-w-0">
+                <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: w.rarity.color }}>{w.rarity.name}</div>
+                <div className="truncate text-sm font-semibold">{s.name}</div>
+                <div className="num text-[10px] text-muted">{w.trades.length} trades · {fmtPct(w.summary.winRate, 0)} WR</div>
+              </div>
+            </div>
+          ))}
+          {setups.length === 0 && <div className="text-sm text-muted">No weapons yet. Learn a spell in the Spellbook to forge your first.</div>}
         </div>
       </Card>
 

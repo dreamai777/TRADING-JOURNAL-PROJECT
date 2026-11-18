@@ -25,8 +25,17 @@ export const GEAR_TIERS: GearTier[] = [
   { id: "rare", name: "Rare", color: "#60a5fa", minTrades: 40, minWinRate: 0.5, minProfitFactor: 1.4, minDiscipline: 0.7, perk: "Consistent and profitable over a real sample." },
   { id: "mythical", name: "Mythical", color: "#c084fc", minTrades: 75, minWinRate: 0.55, minProfitFactor: 1.8, minDiscipline: 0.8, perk: "Top-tier execution. Rules followed 8 times in 10." },
   { id: "legendary", name: "Legendary", color: "#fb923c", minTrades: 150, minWinRate: 0.58, minProfitFactor: 2.2, minDiscipline: 0.85, perk: "Elite edge, proven over 150+ trades." },
-  { id: "god", name: "God", color: "#fde047", minTrades: 300, minWinRate: 0.6, minProfitFactor: 2.5, minDiscipline: 0.9, perk: "Mastery. Fewer than 1 in 100 traders forge this." },
+  { id: "god", name: "God", color: "#fde047", minTrades: 300, minWinRate: 0.6, minProfitFactor: 2.5, minDiscipline: 0.9, perk: "Mastery. The rarest gear in the game." },
 ];
+
+export function tierRequirement(t: GearTier) {
+  if (t.minTrades === 0) return "Any setup";
+  const parts = [`${t.minTrades}+ trades`];
+  if (t.minWinRate) parts.push(`win rate ≥ ${Math.round(t.minWinRate * 100)}%`);
+  if (t.minProfitFactor) parts.push(`PF ≥ ${t.minProfitFactor}`);
+  if (t.minDiscipline) parts.push(`${Math.round(t.minDiscipline * 100)}%+ rules followed`);
+  return parts.join(", ");
+}
 
 export function gearTier(s: { count: number; winRate: number; profitFactor: number; disciplineRate: number }): GearTier {
   let best = GEAR_TIERS[0];

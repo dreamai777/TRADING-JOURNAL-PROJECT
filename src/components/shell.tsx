@@ -1,5 +1,5 @@
 "use client";
-import { BarChart3, Bot, BookOpen, Crown, FlaskConical, GraduationCap, LayoutDashboard, LogOut, Map, Plug, Plus, Settings, Swords, Brain, UserRound } from "lucide-react";
+import { BarChart3, Bot, BookOpen, Crown, FlaskConical, GraduationCap, LayoutDashboard, LogOut, Map, Plug, Plus, ScrollText, Settings, Swords, Brain, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -17,6 +17,7 @@ const NAV = [
   { href: "/profile", label: "My Character", short: "Hero", icon: UserRound },
   { href: "/journal", label: "Journal", short: "Journal", icon: BookOpen },
   { href: "/arsenal", label: "Arsenal", short: "Arsenal", icon: Swords },
+  { href: "/spellbook", label: "Spellbook", short: "Spells", icon: ScrollText },
   { href: "/analytics", label: "Analytics", short: "Stats", icon: BarChart3 },
   { href: "/mindset", label: "Mindset & Risk", short: "Mind", icon: Brain },
   { href: "/academy", label: "Academy", short: "Learn", icon: GraduationCap },

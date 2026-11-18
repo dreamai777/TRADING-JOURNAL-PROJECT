@@ -1,4 +1,5 @@
 // Gamification engine: trader XP/rank, weapon (setup) mastery and rarity, quests, badges.
+import { GEAR_TIERS, gearTier } from "./gear";
 import { summarize } from "./stats";
 import type { Setup, TradeComputed } from "./types";
 
@@ -60,31 +61,22 @@ export function journalStreak(trades: TradeComputed[]) {
   return streak;
 }
 
-export const RARITIES = [
-  { name: "Common", color: "#9ca3af", glow: "rgba(156,163,175,.25)" },
-  { name: "Uncommon", color: "#4ade80", glow: "rgba(74,222,128,.25)" },
-  { name: "Rare", color: "#60a5fa", glow: "rgba(96,165,250,.3)" },
-  { name: "Epic", color: "#c084fc", glow: "rgba(192,132,252,.35)" },
-  { name: "Legendary", color: "#fbbf24", glow: "rgba(251,191,36,.4)" },
-] as const;
+/** Weapon rarity uses the 7 gear tiers (Basic → God). */
+export const RARITIES = GEAR_TIERS.map((t, i) => ({ id: t.id, name: t.name, color: t.color, glow: `${t.color}${["30", "30", "40", "4d", "59", "66", "73"][i]}` }));
 
 export function weaponStats(setup: Setup, trades: TradeComputed[]) {
   const ts = trades.filter((t) => t.setupId === setup.id);
   const s = summarize(ts);
   const xp = ts.reduce((a, t) => a + tradeXp(t), 0);
   const level = Math.min(50, 1 + Math.floor(xp / 150));
-  // Rarity = proven edge. Needs sample size AND positive expectancy.
-  let rarity = 0;
-  if (ts.length >= 5 && s.expectancy > 0) rarity = 1;
-  if (ts.length >= 10 && s.profitFactor >= 1.4) rarity = 2;
-  if (ts.length >= 15 && s.profitFactor >= 1.9 && s.winRate >= 0.45) rarity = 3;
-  if (ts.length >= 25 && s.profitFactor >= 2.5 && s.disciplineRate >= 0.8) rarity = 4;
+  // Rarity = proven edge: sample size AND win rate AND profit factor AND discipline (see core/gear.ts).
+  const rarity = GEAR_TIERS.indexOf(gearTier(s));
   // Weapon "stats" for the card, 0..100
   const power = Math.max(0, Math.min(100, Math.round(((Math.min(s.profitFactor, 4) || 0) / 4) * 100)));
   const accuracy = Math.round(s.winRate * 100);
   const control = Math.round(Math.max(0, 100 - s.maxDrawdownPct * 500));
   const handling = Math.round(s.disciplineRate * 100);
-  return { trades: ts, summary: s, xp, level, rarity: RARITIES[rarity], rarityIndex: rarity, power, accuracy, control, handling };
+  return { trades: ts, summary: s, xp, level, rarity: RARITIES[rarity], rarityIndex: rarity, tier: GEAR_TIERS[rarity], nextTier: GEAR_TIERS[rarity + 1], power, accuracy, control, handling };
 }
 
 export interface Badge {
@@ -109,7 +101,8 @@ export function badges(trades: TradeComputed[], setups: Setup[], extra: { testTa
     def("edge-found", "Edge Found", "💎", "Profit factor above 2 over 30+ trades", trades.length >= 30 && s.profitFactor >= 2),
     def("survivor", "Survivor", "🪖", "Keep max drawdown under 10% over 50 trades", trades.length >= 50 && s.maxDrawdownPct < 0.1),
     def("multi-asset", "Polymath", "🌐", "Trade 3+ asset classes", new Set(trades.map((t) => t.assetClass)).size >= 3),
-    def("legendary", "Legendary Smith", "👑", "Forge a Legendary weapon", setups.some((st) => weaponStats(st, trades).rarityIndex === 4)),
+    def("legendary", "Legendary Smith", "👑", "Forge a Legendary weapon", setups.some((st) => weaponStats(st, trades).rarityIndex >= 5)),
+    def("god-forged", "God-Forged", "⚜️", "Forge a God-tier weapon", setups.some((st) => weaponStats(st, trades).rarityIndex >= 6)),
     def("know-thyself", "Know Thyself", "🧭", "Take the Trader Class Test", !!extra.testTaken),
     def("scholar", "Scholar", "📜", "Finish 5 Academy lessons", (extra.lessonsDone ?? 0) >= 5),
     def("graduate", "Graduate", "🎓", "Finish every free Academy lesson", !!extra.freeLessons && (extra.lessonsDone ?? 0) >= extra.freeLessons),
