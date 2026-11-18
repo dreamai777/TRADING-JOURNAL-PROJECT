@@ -119,3 +119,43 @@ input[type="range"] { accent-color: var(--accent); }
 .char-dust { transform-box: fill-box; animation: dust calc(var(--step, .5s) * 2) ease-out infinite; }
 .char-crown { animation: crown 2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .char-blink, .char-cape, .char-dust, .char-crown { animation: none !important; } }
+
+/* ── Landing: chrome glow that follows the cursor ───────────────────────── */
+.chrome { position: relative; isolation: isolate; --mx: -999px; --my: -999px; }
+.chrome::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none; z-index: 2;
+  background:
+    radial-gradient(220px circle at var(--mx) var(--my), #ffffff, rgba(200,245,59,.75) 22%, rgba(56,217,245,.35) 42%, transparent 62%),
+    linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,.04) 35%, rgba(255,255,255,.02) 60%, rgba(255,255,255,.16));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: .6; transition: opacity .35s;
+}
+.chrome::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1;
+  background: radial-gradient(420px circle at var(--mx) var(--my), rgba(200,245,59,.09), rgba(56,217,245,.05) 35%, transparent 60%);
+  opacity: 0; transition: opacity .35s;
+}
+.chrome:hover::before, .chrome:focus-visible::before { opacity: 1; }
+.chrome:hover::after, .chrome:focus-visible::after { opacity: 1; }
+.chrome:focus-visible { outline: none; }
+@keyframes chrome-sweep { from { background-position: 150% 0 } to { background-position: -150% 0 } }
+.chrome-flash { box-shadow: 0 0 0 1px rgba(255,255,255,.5), 0 0 40px -6px rgba(200,245,59,.7); transition: box-shadow .6s; }
+.chrome-flash { background-image: linear-gradient(105deg, transparent 35%, rgba(255,255,255,.22) 48%, rgba(220,235,255,.35) 50%, rgba(255,255,255,.22) 52%, transparent 65%); background-size: 250% 100%; background-repeat: no-repeat; animation: chrome-sweep .7s ease-out forwards; }
+
+/* Metallic chrome text */
+.chrome-text {
+  background: linear-gradient(180deg, #ffffff 0%, #dfe8f3 38%, #7d8ba0 52%, #f4f8ff 60%, #b6c3d4 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 2px 18px rgba(167,139,250,.25));
+}
+.lime-text { background: linear-gradient(90deg, #c8f53b, #2fe39a 50%, #38d9f5); -webkit-background-clip: text; background-clip: text; color: transparent; }
+@keyframes god-hue { from { filter: hue-rotate(0deg) } to { filter: hue-rotate(360deg) } }
+.god-tier { animation: god-hue 6s linear infinite; }
+@keyframes live-dot { 0%, 100% { opacity: 1; r: 4 } 50% { opacity: .5; r: 6 } }
+.live-dot { animation: live-dot 1.2s ease-in-out infinite; }
+@keyframes float-y { 0%, 100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
+.float-y { animation: float-y 5s ease-in-out infinite; }
+@keyframes scroll-cue { 0% { transform: translateY(0); opacity: 0 } 40% { opacity: 1 } 100% { transform: translateY(10px); opacity: 0 } }
+.scroll-cue { animation: scroll-cue 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .god-tier, .live-dot, .float-y, .scroll-cue, .chrome-flash { animation: none !important; } }
