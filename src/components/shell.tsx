@@ -1,16 +1,18 @@
 "use client";
-import { BarChart3, Bot, BookOpen, Crown, FlaskConical, GraduationCap, LayoutDashboard, LogOut, Map, NotebookPen, Plug, Plus, ScrollText, Settings, Shield, Swords, Brain, UserRound } from "lucide-react";
+import { BarChart3, Bot, BookOpen, Crown, FlaskConical, Gift, GraduationCap, LayoutDashboard, LogOut, Map, NotebookPen, Plug, Plus, ScrollText, Settings, Shield, Store, Swords, Brain, UserRound, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FX } from "@/core/currency";
 import type { CurrencyCode } from "@/core/types";
 import { useJournal } from "@/lib/hooks";
+import { useMarket } from "@/lib/market-store";
 import { useStore } from "@/lib/store";
 import { Logo } from "./logo";
 import { QuickSnap } from "./quick-snap";
 import { Progress, cn } from "./ui";
 import { GlowTracker } from "./landing/glow";
+import { GoldChip } from "./shop/gold";
 
 const NAV = [
   { href: "/dashboard", label: "Command Center", short: "Home", icon: LayoutDashboard },
@@ -24,6 +26,9 @@ const NAV = [
   { href: "/mindset", label: "Mindset & Risk", short: "Mind", icon: Brain },
   { href: "/academy", label: "Academy", short: "Learn", icon: GraduationCap },
   { href: "/backtest", label: "Backtest Lab", short: "Lab", icon: FlaskConical },
+  { href: "/strategy-lab", label: "AI Strategy Lab", short: "Build", icon: Wand2 },
+  { href: "/shop", label: "Hero Shop", short: "Shop", icon: Store },
+  { href: "/referrals", label: "Invite Friends", short: "Invite", icon: Gift },
   { href: "/coach", label: "AI Coach", short: "Coach", icon: Bot },
   { href: "/connections", label: "Connections", short: "Sync", icon: Plug },
 ];
@@ -39,6 +44,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (hydrated && !sessionUserId) router.replace(`/login?next=${encodeURIComponent(pathname)}`);
   }, [hydrated, sessionUserId, router, pathname]);
+
+  // A new hero who arrived through an invite link gets their welcome Gold once.
+  const meId = me?.id;
+  useEffect(() => {
+    if (meId?.startsWith("u_local")) useMarket.getState().claimReferral(meId);
+  }, [meId]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -135,6 +146,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex-1" />
           <CurrencyToggle />
+          <GoldChip className="hidden sm:flex" />
           <XpChip />
           <button onClick={() => setSnapOpen(true)} className="flex h-9 cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-3 text-xs font-bold text-accent-ink lg:hidden">
             <Plus size={15} strokeWidth={3} /> Snap
