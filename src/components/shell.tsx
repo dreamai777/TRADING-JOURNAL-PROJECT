@@ -1,5 +1,5 @@
 "use client";
-import { BarChart3, Bot, BookOpen, Crown, FlaskConical, Gift, GraduationCap, LayoutDashboard, LogOut, Map, Plug, Plus, ScrollText, Settings, Shield, Store, Swords, Brain, UserRound, Wand2 } from "lucide-react";
+import { BarChart3, Bot, BookOpen, Crown, FlaskConical, Gift, GraduationCap, LayoutDashboard, LogOut, Map, NotebookPen, Plug, Plus, ScrollText, Settings, Shield, Store, Swords, Brain, UserRound, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -18,10 +18,11 @@ const NAV = [
   { href: "/dashboard", label: "Command Center", short: "Home", icon: LayoutDashboard },
   { href: "/profile", label: "My Character", short: "Hero", icon: UserRound },
   { href: "/journal", label: "Journal", short: "Journal", icon: BookOpen },
+  { href: "/notebook", label: "Notebook", short: "Notes", icon: NotebookPen },
   { href: "/arsenal", label: "Arsenal", short: "Arsenal", icon: Swords },
   { href: "/spellbook", label: "Spellbook", short: "Spells", icon: ScrollText },
   { href: "/armory", label: "Armory", short: "Armory", icon: Shield },
-  { href: "/analytics", label: "Analytics", short: "Stats", icon: BarChart3 },
+  { href: "/analytics", label: "Reports", short: "Stats", icon: BarChart3 },
   { href: "/mindset", label: "Mindset & Risk", short: "Mind", icon: Brain },
   { href: "/academy", label: "Academy", short: "Learn", icon: GraduationCap },
   { href: "/backtest", label: "Backtest Lab", short: "Lab", icon: FlaskConical },
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (meId?.startsWith("u_local")) useMarket.getState().claimReferral(meId);
   }, [meId]);
+
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
