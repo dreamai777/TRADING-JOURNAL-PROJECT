@@ -1,17 +1,23 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Compare, DayHourHeatmap, DurationTable, SessionTable, TagsAndMistakes } from "@/components/reports";
+import { useCouncil } from "@/lib/ai";
 import { CountBars, DrawdownChart, EquityChart, PnlBars } from "@/components/charts";
-import { Card, CardHeader, Money, PageHeader, cn, fmtNum, fmtPct } from "@/components/ui";
+import { Card, CardHeader, Money, PageHeader, Segmented, cn, fmtNum, fmtPct } from "@/components/ui";
+import { MARKETS } from "@/core/markets";
 import { byHour, byWeekday, equityCurve, groupBy, rDistribution } from "@/core/stats";
 import { useRangedJournal } from "@/lib/hooks";
 import { RangePicker } from "@/components/range-picker";
 
 export default function AnalyticsPage() {
   const { trades, setups, summary: s, startEquity: account } = useRangedJournal();
+  const { council } = useCouncil();
+  const [tab, setTab] = useState<"overview" | "time" | "duration" | "tags" | "compare">("overview");
   const curve = useMemo(() => equityCurve(trades, account), [trades, account]);
   const setupRows = useMemo(() => groupBy(trades, (t) => t.setupId).map((g) => ({ ...g, setup: setups.find((x) => x.id === g.key) })).sort((a, b) => b.summary.netPnl - a.summary.netPnl), [trades, setups]);
   const symbolRows = useMemo(() => groupBy(trades, (t) => t.symbol).sort((a, b) => b.summary.netPnl - a.summary.netPnl), [trades]);
   const sideRows = useMemo(() => groupBy(trades, (t) => t.side), [trades]);
+  const marketRows = useMemo(() => groupBy(trades, (t) => t.market).sort((a, b) => b.summary.netPnl - a.summary.netPnl), [trades]);
   const assetRows = useMemo(() => groupBy(trades, (t) => t.assetClass).map((g) => ({ asset: g.key, pnl: g.summary.netPnl, count: g.summary.count })), [trades]);
 
   const metrics: [string, React.ReactNode][] = [
@@ -24,7 +30,13 @@ export default function AnalyticsPage() {
 
   return (
     <div>
-      <PageHeader title="Analytics" subtitle="Find where your edge lives, and where it leaks." right={<RangePicker />} />
+      <PageHeader title="Reports" subtitle="Find where your edge lives, and where it leaks." right={<RangePicker />} />
+      <div className="mb-4 overflow-x-auto"><Segmented value={tab} onChange={setTab} options={[{ value: "overview", label: "Overview" }, { value: "time", label: "Day & time" }, { value: "duration", label: "Duration" }, { value: "tags", label: "Mistakes, tags & grades" }, { value: "compare", label: "Compare" }]} /></div>
+      {tab === "time" && <div className="space-y-4"><DayHourHeatmap trades={trades} /><div className="grid gap-4 xl:grid-cols-2"><SessionTable trades={trades} /><Card><CardHeader title="By weekday" subtitle="Day the trade was opened" /><div className="px-2 pb-3"><PnlBars data={byWeekday(trades)} x="day" /></div></Card></div></div>}
+      {tab === "duration" && <DurationTable trades={trades} />}
+      {tab === "tags" && <TagsAndMistakes trades={trades} reviews={council.reviews} />}
+      {tab === "compare" && <Compare trades={trades} setups={setups} />}
+      {tab === "overview" && <>
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[14px] border border-line bg-line sm:grid-cols-4 xl:grid-cols-10">
         {metrics.map(([k, v]) => (
           <div key={k} className="bg-surface px-4 py-3">
@@ -83,7 +95,7 @@ export default function AnalyticsPage() {
               const max = Math.max(...symbolRows.map((x) => Math.abs(x.summary.netPnl)));
               return (
                 <div key={r.key} className="flex items-center gap-3 border-b border-line/50 py-2 text-sm">
-                  <span className="w-20 font-semibold">{r.key}</span>
+                  <span className="w-28 truncate font-semibold" title={r.key}>{r.key}</span>
                   <div className="relative h-2 flex-1 rounded-full bg-surface-3">
                     <div className="absolute top-0 h-2 rounded-full" style={{ width: `${(Math.abs(r.summary.netPnl) / max) * 100}%`, background: r.summary.netPnl >= 0 ? "#2fe39a" : "#ff5470" }} />
                   </div>
@@ -94,7 +106,27 @@ export default function AnalyticsPage() {
             })}
           </div>
         </Card>
+        {marketRows.length > 0 && (
+          <Card>
+            <CardHeader title="Crypto by market type" subtitle="Spot, perps, bots and more, side by side" />
+            <div className="px-5 pb-5">
+              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 border-b border-line pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-faint"><span>Market</span><span className="text-right">Trades</span><span className="text-right">Win</span><span className="w-20 text-right">Net</span></div>
+              {marketRows.map((r) => {
+                const m = MARKETS[r.key];
+                return (
+                  <div key={r.key} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-x-4 border-b border-line/50 py-2 text-sm">
+                    <span><span className="rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ color: m.color, background: `${m.color}1c` }}>{m.short}</span> <span className="text-muted">{m.name}</span></span>
+                    <span className="num text-right text-xs text-muted">{r.summary.count}</span>
+                    <span className="num text-right text-xs">{Math.round(r.summary.winRate * 100)}%</span>
+                    <Money usd={r.summary.netPnl} sign compact className="w-20 text-right text-xs font-semibold" />
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
       </div>
+      </>}
     </div>
   );
 }

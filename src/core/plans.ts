@@ -33,12 +33,12 @@ export const PLANS: Plan[] = [
   {
     id: "premium", name: "Premium", rank: "Champion", monthly: 19, yearly: 15, color: "#c8f53b", cta: "Go Premium",
     pitch: "Sync every account in real time and find your edge faster with deep analytics and an AI coach.",
-    highlights: ["5 exchange accounts, real-time auto-sync", "Every crypto market: spot, perpetuals, futures, margin, grid and DCA bots", "Advanced analytics by setup, session, symbol and emotion", "Unlimited trade replay and backtests", "AI coach: weekly reports, leak alerts, 200 messages a month", "Premium Academy: video vault and premium channel"],
+    highlights: ["5 exchange accounts, real-time auto-sync", "Every crypto market: spot, perpetuals, futures, margin, grid and DCA bots", "Advanced analytics by setup, session, symbol and emotion", "Unlimited trade replay and backtests", "AI Council: all 5 agents, 1 custom agent, 200 chats a month", "Premium Academy: video vault and premium channel"],
   },
   {
     id: "ultra", name: "Ultra", rank: "Legend", monthly: 49, yearly: 39, color: "#fbbf24", cta: "Go Ultra",
     pitch: "For full-time and prop-firm traders: everything unlimited, live sessions and a monthly 1:1 review.",
-    highlights: ["Unlimited accounts and portfolios, including prop firms with rule tracking", "Unlimited AI coach with a pre-trade checklist check", "Tick-data backtests across crypto, stocks, futures and forex", "Live trading sessions and a monthly 1:1 journal review", "Mentor sharing and API export", "Priority support and early access"],
+    highlights: ["Unlimited accounts and portfolios, including prop firms with rule tracking", "Unlimited AI Council chats, 10 custom agents, pre-trade check", "Tick-data backtests across crypto, stocks, futures and forex", "Live trading sessions and a monthly 1:1 journal review", "Mentor sharing and API export", "Priority support and early access"],
   },
 ];
 
@@ -77,10 +77,13 @@ export const FEATURE_MATRIX: { group: string; rows: [string, V, V, V][] }[] = [
     ],
   },
   {
-    group: "AI coach",
+    group: "AI Council",
     rows: [
-      ["Weekly performance summary", true, true, true],
-      ["Leak alerts and coach chat", false, "200 messages a month", "Unlimited"],
+      ["Oracle trade analyst: grade, what went right and wrong, tips", "Every trade", "Every trade", "Every trade"],
+      ["Sensei personal coach: weekly focus and daily briefing", true, true, true],
+      ["Habit, Risk and Sentiment agents with leak alerts", "Preview", true, true],
+      ["Chat with any agent (Claude)", "20 messages a month", "200 messages a month", "Unlimited"],
+      ["Custom agents with your own rules and voice", false, "1 agent", "10 agents"],
       ["Pre-trade checklist check against your Spellbook", false, false, true],
     ],
   },

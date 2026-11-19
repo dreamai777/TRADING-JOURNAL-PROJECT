@@ -7,20 +7,26 @@ import { TradeReplay } from "@/components/replay";
 import { ShareTrade } from "@/components/share-card";
 import { Button, Card, Empty, Input, Label, Modal, Money, PageHeader, Pill, Segmented, Select, Textarea, cn, fmtDateTime, fmtPrice } from "@/components/ui";
 import { CSV_TEMPLATE, mapCsvRows } from "@/core/csv";
+import { EXCHANGE_BY_ID, MARKETS, MARKET_IDS, MODE_LABEL, modeOf, type JournalMode } from "@/core/markets";
 import { summarize } from "@/core/stats";
 import type { Trade, TradeComputed } from "@/core/types";
 import { useJournal, useRangedJournal } from "@/lib/hooks";
 import { RangePicker } from "@/components/range-picker";
 import { useStore } from "@/lib/store";
+import Link from "next/link";
+import { GradeBadge } from "@/components/ai/report-view";
+import { useCouncil } from "@/lib/ai";
 
 const PAGE = 25;
 
 export default function JournalPage() {
   const { me, trades, setups } = useRangedJournal();
+  const { council } = useCouncil();
   const [q, setQ] = useState("");
   const [outcome, setOutcome] = useState<"all" | "win" | "loss">("all");
   const [setupF, setSetupF] = useState("");
   const [assetF, setAssetF] = useState("");
+  const [modeF, setModeF] = useState<JournalMode | "">("");
   const [page, setPage] = useState(0);
   const [openId, setOpenId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
@@ -31,8 +37,9 @@ export default function JournalPage() {
       .filter((t) => (q ? t.symbol.toLowerCase().includes(q.toLowerCase()) || (t.notes ?? "").toLowerCase().includes(q.toLowerCase()) : true))
       .filter((t) => (outcome === "all" ? true : outcome === "win" ? t.win : !t.win))
       .filter((t) => (setupF ? t.setupId === setupF : true))
-      .filter((t) => (assetF ? t.assetClass === assetF : true));
-  }, [trades, q, outcome, setupF, assetF]);
+      .filter((t) => (!assetF ? true : assetF.startsWith("m:") ? t.market === assetF.slice(2) : t.assetClass === assetF))
+      .filter((t) => (modeF ? modeOf(t.source) === modeF : true));
+  }, [trades, q, outcome, setupF, assetF, modeF]);
   const s = summarize(filtered);
   const open = trades.find((t) => t.id === openId);
   const rows = filtered.slice(page * PAGE, page * PAGE + PAGE);
@@ -64,7 +71,16 @@ export default function JournalPage() {
           </Select>
           <Select value={assetF} onChange={(e) => { setAssetF(e.target.value); setPage(0); }} className="md:w-40">
             <option value="">All markets</option>
-            {["crypto", "forex", "futures", "equities", "options"].map((a) => <option key={a} value={a}>{a[0].toUpperCase() + a.slice(1)}</option>)}
+            <optgroup label="Asset class">
+              {["crypto", "forex", "futures", "equities", "options"].map((a) => <option key={a} value={a}>{a[0].toUpperCase() + a.slice(1)}</option>)}
+            </optgroup>
+            <optgroup label="Crypto market">
+              {MARKET_IDS.map((m) => <option key={m} value={`m:${m}`}>{MARKETS[m].name}</option>)}
+            </optgroup>
+          </Select>
+          <Select value={modeF} onChange={(e) => { setModeF(e.target.value as JournalMode | ""); setPage(0); }} className="md:w-36">
+            <option value="">Any source</option>
+            {(Object.keys(MODE_LABEL) as JournalMode[]).map((m) => <option key={m} value={m}>{MODE_LABEL[m]}</option>)}
           </Select>
           <RangePicker />
           <Segmented value={outcome} onChange={(v) => { setOutcome(v); setPage(0); }} options={[{ value: "all", label: "All" }, { value: "win", label: "Wins" }, { value: "loss", label: "Losses" }]} />
@@ -87,6 +103,7 @@ export default function JournalPage() {
               <thead>
                 <tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[.08em] text-faint">
                   <th className="px-4 py-3">Closed</th>
+                  <th className="px-2 py-3 text-center" title="AI process grade from Oracle">AI</th>
                   <th className="px-2 py-3">Symbol</th>
                   <th className="px-2 py-3">Side</th>
                   <th className="px-2 py-3">Weapon</th>
@@ -104,9 +121,11 @@ export default function JournalPage() {
                   return (
                     <tr key={t.id} onClick={() => setOpenId(t.id)} className="cursor-pointer border-b border-line/60 transition-colors last:border-0 hover:bg-surface-2">
                       <td className="whitespace-nowrap px-4 py-2.5 text-muted">{fmtDateTime(t.closedAt)}</td>
+                      <td className="px-2 py-2.5 text-center">{council.reviews.get(t.id) ? <GradeBadge grade={council.reviews.get(t.id)!.grade} size="sm" /> : "—"}</td>
                       <td className="px-2 py-2.5 font-semibold">
-                        {t.symbol}
+                        <span className="whitespace-nowrap">{t.symbol}</span>
                         {t.replaySaved && <Film size={12} className="ml-1.5 inline text-violet" />}
+                        {t.market && <MarketBadge market={t.market} leverage={t.leverage} />}
                       </td>
                       <td className="px-2 py-2.5"><Pill tone={t.side === "long" ? "profit" : "loss"} className="uppercase">{t.side}</Pill></td>
                       <td className="max-w-[180px] truncate px-2 py-2.5 text-muted">{st ? `${st.icon} ${st.name}` : "—"}</td>
@@ -115,7 +134,7 @@ export default function JournalPage() {
                       <td className={cn("num px-2 py-2.5 text-right", (t.r ?? 0) >= 0 ? "text-profit" : "text-loss")}>{t.r != null ? t.r.toFixed(2) : "—"}</td>
                       <td className="px-2 py-2.5 text-center" title={t.emotion}>{t.emotion ? EMOTION_META[t.emotion].icon : "—"}</td>
                       <td className="px-2 py-2.5 text-center">{t.rulesFollowed == null ? "—" : t.rulesFollowed ? <span className="text-profit">✓</span> : <span className="text-loss">✗</span>}</td>
-                      <td className="px-4 py-2.5"><Pill>{t.source}</Pill></td>
+                      <td className="whitespace-nowrap px-4 py-2.5"><SourceTag source={t.source} exchange={t.exchange} /></td>
                     </tr>
                   );
                 })}
@@ -148,7 +167,10 @@ function TradeDetail({ trade, onClose }: { trade: TradeComputed; onClose: () => 
   const setup = setups.find((x) => x.id === trade.setupId);
   return (
     <Modal open onClose={onClose} wide title={<span className="flex items-center gap-2"><Pill tone={trade.side === "long" ? "profit" : "loss"} className="uppercase">{trade.side}</Pill> {trade.symbol} <Money usd={trade.pnl} sign className="ml-1" /></span>}>
-      <Segmented value={tab} onChange={setTab} className="mb-5" options={[{ value: "review", label: "Review" }, { value: "replay", label: <span className="flex items-center gap-1.5"><Film size={13} /> Replay</span> }, { value: "share", label: <span className="flex items-center gap-1.5"><Share2 size={13} /> Share</span> }]} />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+      <Segmented value={tab} onChange={setTab} options={[{ value: "review", label: "Review" }, { value: "replay", label: <span className="flex items-center gap-1.5"><Film size={13} /> Replay</span> }, { value: "share", label: <span className="flex items-center gap-1.5"><Share2 size={13} /> Share</span> }]} />
+      <Link href={`/journal/${trade.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-violet/15 px-3 text-xs font-bold text-violet hover:bg-violet/25">🔮 Full AI review & trade page →</Link>
+      </div>
       {tab === "review" && (
         <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
           <div className="grid grid-cols-2 gap-3 self-start">
@@ -156,7 +178,12 @@ function TradeDetail({ trade, onClose }: { trade: TradeComputed; onClose: () => 
               ["Entry", fmtPrice(trade.entry)], ["Exit", fmtPrice(trade.exit)], ["Size", String(+trade.qty.toFixed(4))], ["Fees", `$${trade.fees.toFixed(2)}`],
               ["Stop", trade.stopLoss != null ? fmtPrice(trade.stopLoss) : "—"], ["R multiple", trade.r != null ? `${trade.r.toFixed(2)}R` : "—"],
               ["Opened", fmtDateTime(trade.openedAt)], ["Held", trade.holdMinutes >= 60 ? `${(trade.holdMinutes / 60).toFixed(1)}h` : `${Math.round(trade.holdMinutes)}m`],
-              ["Market", trade.assetClass], ["Source", trade.source],
+              ["Asset class", trade.assetClass],
+              ["Market", trade.market ? `${MARKETS[trade.market].name}${trade.leverage ? ` · ${trade.leverage}x` : ""}` : "—"],
+              ["Exchange", trade.exchange ? EXCHANGE_BY_ID[trade.exchange].name : "—"],
+              ["Journaled by", MODE_LABEL[modeOf(trade.source)]],
+              ...(trade.instrument ? [["Exchange id", trade.instrument]] : []),
+              ...(trade.funding != null ? [["Funding", `${trade.funding >= 0 ? "-" : "+"}$${Math.abs(trade.funding).toFixed(2)}`]] : []),
             ].map(([k, v]) => (
               <div key={k} className="rounded-lg border border-line bg-surface-2 px-3 py-2">
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-faint">{k}</div>
@@ -239,5 +266,21 @@ function ImportModal({ open, onClose, userId }: { open: boolean; onClose: () => 
         </div>
       )}
     </Modal>
+  );
+}
+
+function MarketBadge({ market, leverage }: { market: NonNullable<Trade["market"]>; leverage?: number }) {
+  const m = MARKETS[market];
+  return <span className="ml-1.5 inline-block whitespace-nowrap rounded px-1.5 py-0.5 align-middle text-[9px] font-bold" style={{ color: m.color, background: `${m.color}1c` }}>{m.short}{leverage ? ` ${leverage}x` : ""}</span>;
+}
+
+function SourceTag({ source, exchange }: { source: Trade["source"]; exchange?: Trade["exchange"] }) {
+  const ex = EXCHANGE_BY_ID[(exchange ?? source) as keyof typeof EXCHANGE_BY_ID];
+  const mode = modeOf(source);
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs">
+      {ex ? <span className="font-semibold" style={{ color: ex.color }}>{ex.name}</span> : <span className="text-muted">{source === "csv" ? "CSV" : source === "demo" ? "Demo" : "Manual"}</span>}
+      <span className={cn("rounded px-1 py-px text-[9px] font-bold uppercase", mode === "auto" ? "bg-profit/15 text-profit" : mode === "import" ? "bg-cyan/15 text-cyan" : "bg-surface-3 text-muted")}>{mode === "auto" ? "Sync" : mode === "import" ? "CSV" : "Manual"}</span>
+    </span>
   );
 }
