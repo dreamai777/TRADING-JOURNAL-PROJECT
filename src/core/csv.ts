@@ -1,4 +1,5 @@
 // Broker-agnostic CSV mapping. Accepts common column names from exchanges/brokers.
+import { exchangeSymbol, parseSymbol, type CryptoMarket, type ExchangeId } from "./markets";
 import { uid } from "./random";
 import type { AssetClass, Trade } from "./types";
 
@@ -13,7 +14,18 @@ const ALIASES: Record<string, string[]> = {
   closedAt: ["closed", "close time", "close_time", "exit time", "exit_time", "closed at"],
   stopLoss: ["stop", "stop loss", "stop_loss", "sl"],
   notes: ["notes", "note", "comment"],
+  marketType: ["market type", "market_type", "instrument type", "inst type", "insttype", "category", "account type", "product"],
+  leverage: ["leverage", "lever", "lev"],
+  funding: ["funding", "funding fee", "funding_fee", "funding fees"],
+  exchange: ["exchange", "venue", "broker"],
 };
+
+const MARKET_HINTS: [RegExp, CryptoMarket][] = [
+  [/grid/, "grid"], [/dca|recurring/, "dca"], [/copy/, "copy"], [/option/, "options"], [/margin/, "margin"],
+  [/swap|perp|linear|inverse|usd[tc]?.?m\b|coin.?m|contract|umcbl/, "perp"], [/futures?|delivery/, "futures"], [/spot/, "spot"],
+];
+const marketHint = (v?: string) => (v ? MARKET_HINTS.find(([re]) => re.test(v.toLowerCase()))?.[1] : undefined);
+const EXCHANGE_IDS: ExchangeId[] = ["binance", "okx", "bitget", "bybit"];
 
 export function mapCsvRows(rows: Record<string, string>[], userId: string): { trades: Trade[]; errors: string[] } {
   const errors: string[] = [];
@@ -45,12 +57,23 @@ export function mapCsvRows(rows: Record<string, string>[], userId: string): { tr
     }
     const opened = parseDate(get("openedAt")) ?? new Date();
     const closed = parseDate(get("closedAt")) ?? opened;
-    const symbol = (get("symbol") ?? "UNKNOWN").toUpperCase();
+    const rawSymbol = (get("symbol") ?? "UNKNOWN").toUpperCase();
+    let symbol = rawSymbol;
+    let crypto: Partial<Trade> = {};
+    if (guessAssetClass(rawSymbol) === "crypto") {
+      // Exchange exports name instruments their own way (SOL-USDT-SWAP, SOLUSDT_UMCBL, ...). Show them as SOLUSDT.P.
+      const p = parseSymbol(rawSymbol, marketHint(get("marketType")));
+      const ex = EXCHANGE_IDS.find((x) => (get("exchange") ?? "").toLowerCase().includes(x));
+      const lev = num("leverage");
+      symbol = p.display;
+      crypto = { market: p.market, exchange: ex, instrument: ex ? exchangeSymbol(ex, p.base, p.quote, p.market, p.expiry) : rawSymbol, leverage: lev && lev >= 1 ? lev : undefined, funding: num("funding") };
+    }
     trades.push({
+      ...crypto,
       id: uid("t"),
       userId,
       symbol,
-      assetClass: guessAssetClass(symbol),
+      assetClass: guessAssetClass(rawSymbol),
       side,
       entry,
       exit,
@@ -59,7 +82,7 @@ export function mapCsvRows(rows: Record<string, string>[], userId: string): { tr
       stopLoss: num("stopLoss"),
       openedAt: opened.toISOString(),
       closedAt: closed.toISOString(),
-      tags: ["imported"],
+      tags: crypto.market ? ["imported", crypto.market] : ["imported"],
       mistakes: [],
       notes: get("notes"),
       source: "csv",

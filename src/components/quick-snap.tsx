@@ -1,8 +1,10 @@
 "use client";
-import { Sparkles, Star } from "lucide-react";
+import { Lock, Sparkles, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { guessAssetClass } from "@/core/csv";
 import { tradeXp } from "@/core/game";
+import { EXCHANGES, MARKETS, displaySymbol, exchangeSymbol, parseSymbol, type CryptoMarket, type ExchangeId } from "@/core/markets";
+import { isPaid } from "@/core/plans";
 import { parseQuick } from "@/core/quick";
 import { computeTrade } from "@/core/stats";
 import type { Emotion, Mistake, Side, Trade } from "@/core/types";
@@ -33,14 +35,16 @@ export const MISTAKE_LABEL: Record<Mistake, string> = {
   overtraded: "Overtraded",
 };
 
-const RECENT = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "EURUSD", "XAUUSD", "NQ", "ES", "NVDA"];
+const RECENT = ["BTCUSDT.P", "ETHUSDT.P", "SOLUSDT.P", "RAYUSDT.P", "SOLUSDT", "RAYUSDT", "BTCUSDT", "EURUSD", "XAUUSD", "NQ", "ES", "NVDA"];
+const SNAP_MARKETS: CryptoMarket[] = ["spot", "perp", "futures", "margin", "grid", "dca", "copy"];
 
 export function QuickSnap({ open, onClose }: { open: boolean; onClose: () => void }) {
   return open ? <QuickSnapInner onClose={onClose} /> : null;
 }
 
 function QuickSnapInner({ onClose }: { onClose: () => void }) {
-  const { setups } = useJournal();
+  const { me, setups } = useJournal();
+  const paid = isPaid(me?.plan);
   const addTrade = useStore((s) => s.addTrade);
   const [smart, setSmart] = useState("");
   const [symbol, setSymbol] = useState("BTCUSDT");
@@ -50,6 +54,9 @@ function QuickSnapInner({ onClose }: { onClose: () => void }) {
   const [qty, setQty] = useState("");
   const [stop, setStop] = useState("");
   const [fees] = useState("");
+  const [market, setMarket] = useState<CryptoMarket>("perp");
+  const [exchange, setExchange] = useState<ExchangeId | "">("");
+  const [leverage, setLeverage] = useState("");
   const [setupId, setSetupId] = useState<string | undefined>(setups.find((s) => s.equipped)?.id);
   const [emotion, setEmotion] = useState<Emotion | undefined>();
   const [mistakes, setMistakes] = useState<Mistake[]>([]);
@@ -62,6 +69,8 @@ function QuickSnapInner({ onClose }: { onClose: () => void }) {
     setSmart(text);
     const p = parseQuick(text, setups);
     if (p.symbol) setSymbol(p.symbol);
+    if (p.market) setMarket(p.market);
+    if (p.leverage) setLeverage(String(p.leverage));
     if (p.side) setSide(p.side);
     if (p.entry != null) setEntry(String(p.entry));
     if (p.exit != null) setExit(String(p.exit));
@@ -71,16 +80,33 @@ function QuickSnapInner({ onClose }: { onClose: () => void }) {
     if (p.setupHint) setSetupId(p.setupHint);
   }
 
+  const pair = parseSymbol(symbol, market);
+  const isCrypto = guessAssetClass(`${pair.base}${pair.quote}`) === "crypto";
+  const lev = MARKETS[market].leverage && +leverage >= 1 ? +leverage : undefined;
+  const shownSymbol = isCrypto ? displaySymbol(pair.base, pair.quote, market, pair.expiry) : symbol.toUpperCase();
+  const spotShort = isCrypto && side === "short" && (market === "spot" || market === "grid" || market === "dca");
+
+  function changeSymbol(v: string) {
+    setSymbol(v.toUpperCase());
+    const ps = parseSymbol(v);
+    if (ps.market !== "spot") setMarket(ps.market);
+  }
+
   const draft = useMemo<Omit<Trade, "id" | "userId"> | null>(() => {
     const e = +entry, x = +exit, q = +qty;
-    if (!symbol || !e || !x || !q) return null;
+    if (!symbol || !e || !x || !q || spotShort) return null;
     const now = new Date();
+    const crypto = isCrypto
+      ? { market, leverage: lev, exchange: exchange || undefined, instrument: exchange ? exchangeSymbol(exchange, pair.base, pair.quote, market, pair.expiry) : undefined }
+      : {};
     return {
-      symbol: symbol.toUpperCase(), assetClass: guessAssetClass(symbol), side, entry: e, exit: x, qty: q, fees: +fees || 0,
+      ...crypto,
+      symbol: shownSymbol, assetClass: isCrypto ? "crypto" : guessAssetClass(symbol), side, entry: e, exit: x, qty: q, fees: +fees || 0,
       stopLoss: stop ? +stop : undefined, openedAt: new Date(now.getTime() - 30 * 60000).toISOString(), closedAt: now.toISOString(),
-      setupId, tags: [], emotion, mistakes, rulesFollowed: rules, rating, notes, source: "manual",
+      setupId, tags: isCrypto ? [market] : [], emotion, mistakes, rulesFollowed: rules, rating, notes, source: "manual",
     };
-  }, [symbol, side, entry, exit, qty, fees, stop, setupId, emotion, mistakes, rules, rating, notes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, side, entry, exit, qty, fees, stop, setupId, emotion, mistakes, rules, rating, notes, market, exchange, leverage]);
 
   const preview = draft ? computeTrade({ ...draft, id: "preview", userId: "me" }) : null;
   const xp = preview ? tradeXp(preview) : 0;
@@ -117,13 +143,13 @@ function QuickSnapInner({ onClose }: { onClose: () => void }) {
       <div className="space-y-5">
         <div>
           <Label hint="type it like you'd text it">One-line snap</Label>
-          <Input autoFocus value={smart} onChange={(e) => applySmart(e.target.value)} placeholder="btc long 90100 → 91550 0.2 sl 89600 calm" className="h-11 border-accent/30 font-mono" />
+          <Input autoFocus value={smart} onChange={(e) => applySmart(e.target.value)} placeholder="sol.p long 142 151 3 10x sl 138 calm" className="h-11 border-accent/30 font-mono" />
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="col-span-2">
             <Label>Symbol</Label>
-            <Input value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} list="recent-symbols" />
+            <Input value={symbol} onChange={(e) => changeSymbol(e.target.value)} list="recent-symbols" />
             <datalist id="recent-symbols">{RECENT.map((s) => <option key={s} value={s} />)}</datalist>
           </div>
           <div className="col-span-2">
@@ -141,6 +167,35 @@ function QuickSnapInner({ onClose }: { onClose: () => void }) {
           <Field label="Size" v={qty} set={setQty} />
           <Field label="Stop" v={stop} set={setStop} hint="for R" />
         </div>
+
+        {isCrypto && (
+          <div className="space-y-3 rounded-xl border border-line bg-surface-2/60 p-3">
+            <div>
+              <Label hint={`saved as ${shownSymbol}`}>Crypto market</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {SNAP_MARKETS.map((m) => {
+                  const locked = !MARKETS[m].free && !paid;
+                  return (
+                    <button key={m} type="button" disabled={locked} title={locked ? `${MARKETS[m].name} journaling is on Premium` : MARKETS[m].desc} onClick={() => setMarket(m)} className={cn("flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold transition disabled:cursor-not-allowed disabled:opacity-45", market === m ? "border-transparent" : "border-line text-muted hover:text-ink")} style={market === m ? { color: MARKETS[m].color, background: `${MARKETS[m].color}22` } : undefined}>
+                      {locked && <Lock size={10} />}{MARKETS[m].short}
+                    </button>
+                  );
+                })}
+              </div>
+              {spotShort && <p className="mt-1.5 text-[11px] text-loss">{MARKETS[market].name} can only be long. Pick Perp or Margin for a short.</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Exchange</Label>
+                <select value={exchange} onChange={(e) => setExchange(e.target.value as ExchangeId | "")} className="h-10 w-full rounded-lg border border-line bg-surface-2 px-2 text-sm">
+                  <option value="">Other / wallet</option>
+                  {EXCHANGES.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+                </select>
+              </div>
+              {MARKETS[market].leverage ? <Field label="Leverage" v={leverage} set={setLeverage} hint="x" /> : <div className="self-end pb-2 text-[11px] text-faint">No leverage on {MARKETS[market].name.toLowerCase()}.</div>}
+            </div>
+          </div>
+        )}
 
         {setups.length > 0 && (
           <div>
