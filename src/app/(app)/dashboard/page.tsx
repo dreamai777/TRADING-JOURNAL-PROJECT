@@ -8,7 +8,9 @@ import { MonthCalendar } from "@/components/month-calendar";
 import { RangePicker } from "@/components/range-picker";
 import { Card, CardHeader, Money, PageHeader, Pill, Progress, Stat, fmtDateTime, fmtNum, fmtPct } from "@/components/ui";
 import { dailyQuests, journalStreak, weaponStats } from "@/core/game";
-import { ruleInsights } from "@/core/insights";
+import { PERSONAS } from "@/core/ai/agents";
+import { GradeBadge } from "@/components/ai/report-view";
+import { useCouncil } from "@/lib/ai";
 import { RANGES, equityCurve, forgeScore, summarize } from "@/core/stats";
 import { useRangedJournal } from "@/lib/hooks";
 
@@ -18,7 +20,7 @@ export default function Dashboard() {
   const s = useMemo(() => summarize(trades, account), [trades, account]);
   const curve = useMemo(() => equityCurve(trades, account), [trades, account]);
   const score = useMemo(() => forgeScore(s), [s]);
-  const insights = useMemo(() => ruleInsights(all, setups).slice(0, 3), [all, setups]);
+  const { council } = useCouncil();
   const streak = journalStreak(all);
   const quests = dailyQuests(all, new Date().toISOString().slice(0, 10));
   const loadout = setups.filter((x) => x.equipped).map((x) => ({ setup: x, w: weaponStats(x, all) }));
@@ -114,20 +116,21 @@ export default function Dashboard() {
             {!loadout.length && <div className="px-2 py-6 text-center text-sm text-muted">No weapons equipped yet.</div>}
           </div>
         </Card>
-        <Card>
-          <CardHeader title="Coach says" subtitle="Patterns found in your journal" right={<Link href="/coach" className="flex items-center gap-1 text-xs font-semibold text-accent">All insights <ArrowRight size={13} /></Link>} />
-          <div className="space-y-2.5 px-5 pb-5">
-            {insights.map((i) => (
-              <div key={i.id} className="rounded-lg border border-line bg-surface-2 p-3">
-                <div className="flex items-start gap-2">
-                  <span className={i.tone === "good" ? "text-profit" : i.tone === "bad" ? "text-loss" : i.tone === "warn" ? "text-gold" : "text-cyan"}>●</span>
-                  <div>
-                    <div className="text-sm font-semibold">{i.title}</div>
-                    <div className="mt-0.5 text-xs text-muted">{i.body}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
+        <Card className="relative overflow-hidden">
+          <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-accent/10 blur-3xl" />
+          <CardHeader title="AI Council" icon={<span>🥋</span>} subtitle="Sensei's briefing from your five agents" right={<Link href="/coach" className="flex items-center gap-1 text-xs font-semibold text-accent">Open <ArrowRight size={13} /></Link>} />
+          <div className="px-5 pb-5">
+            <p className="text-[13px] leading-snug">{council.briefing}</p>
+            <div className="mt-3 space-y-1">
+              {(["analyst", "habit", "risk", "sentiment"] as const).map((id) => (
+                <Link key={id} href={`/coach/${id}`} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-surface-2">
+                  <span className="text-base">{PERSONAS[id].icon}</span>
+                  <span className="w-16 text-xs font-semibold">{PERSONAS[id].name}</span>
+                  <span className="min-w-0 flex-1 truncate text-[11px] text-muted">{council.reports[id].headline}</span>
+                  <GradeBadge grade={council.reports[id].grade} size="sm" />
+                </Link>
+              ))}
+            </div>
           </div>
         </Card>
         <Card>

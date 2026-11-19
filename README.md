@@ -19,6 +19,17 @@ npm run build      # production build
 Demo logins (password `demo1234`): `trader@demo.gg` (160 seeded trades) and `admin@demo.gg` (admin console).
 Or sign up with any email. Prototype data lives in your browser (localStorage).
 
+## AI Council
+
+Five agents read the journal: Oracle (trade analyst: grade, what went right and wrong, tips), Ironclad (habits),
+Bulwark (risk), Empath (sentiment) and Sensei (personal coach), plus custom agents traders build with their own
+rules and voice. Agent reports are computed on-device in `src/core/ai/` and need no key.
+
+Chat goes to Claude through `src/app/api/ai/route.ts`. Set these env vars on the host (Netlify or Vercel):
+
+- `ANTHROPIC_API_KEY` (required for Claude; without it chat falls back to the offline engine)
+- `ANTHROPIC_MODEL` (optional, defaults to `claude-opus-5-5`)
+
 ## Architecture
 
 ```
@@ -41,5 +52,6 @@ supabase/      Production Postgres schema with row-level security.
 | Simulated exchange sync | Server-side CCXT worker (Binance, OKX, Bitget), keys in Supabase Vault |
 | Generated replay candles | Exchange klines via CCXT; Polygon/Databento for US markets |
 | Synthetic backtest data | Polygon (equities/options), Databento (CME), exchange history (crypto), FX feed |
-| Rule-based coach | Claude API behind the same `CoachProvider` interface (`src/lib/coach.ts`) |
+| AI Council offline engine | Same agents + Claude chat via `/api/ai` once `ANTHROPIC_API_KEY` is set |
+| Demo market-mood feed | Live fear and greed, funding and long/short ratios from the sync worker |
 | Static FX snapshot | Scheduled FX job writing `fx_rates` |
