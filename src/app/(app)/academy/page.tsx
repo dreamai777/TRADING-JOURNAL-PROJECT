@@ -5,6 +5,7 @@ import { Card, CardHeader, PageHeader, Progress, cn } from "@/components/ui";
 import { TRACKS, academyState, lessonXp } from "@/core/academy";
 import { TRADER_TYPES, studyPath } from "@/core/trader-test";
 import { useJournal } from "@/lib/hooks";
+import { isPaid } from "@/core/plans";
 import { useStore } from "@/lib/store";
 
 const FORMAT = { read: { icon: BookOpen, label: "Read" }, video: { icon: PlayCircle, label: "Video" }, drill: { icon: Dumbbell, label: "Drill" } } as const;
@@ -19,7 +20,7 @@ export default function AcademyPage() {
   const { me, trades, setups } = useJournal();
   const setPlan = useStore((s) => s.setPlan);
   if (!me) return null;
-  const guild = me.plan === "guild";
+  const guild = isPaid(me.plan);
   const st = academyState({ trades, setups, testTaken: !!me.traderProfile, lessonsDone: me.lessonsDone ?? [] }, guild);
   const byId = new Map(st.lessons.map((l) => [l.id, l]));
   const path = me.traderProfile ? studyPath(me.traderProfile).map((p) => byId.get(p.lesson.id)!).filter((l) => !l.completed).slice(0, 3) : [];
@@ -96,11 +97,11 @@ export default function AcademyPage() {
       <Card className="chrome mt-8 overflow-hidden p-6" style={{ background: "radial-gradient(100% 80% at 100% 0%, rgba(251,191,36,.14), transparent 60%), var(--surface)" }}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 text-sm font-bold text-gold"><Crown size={16} /> Guild · Premium</div>
+            <div className="flex items-center gap-2 text-sm font-bold text-gold"><Crown size={16} /> Premium Academy</div>
             <div className="mt-1 font-display text-2xl font-bold">Speed up. Gear up. Battle-ready sooner.</div>
             <p className="mt-1 max-w-2xl text-sm text-muted">Everything in the free Academy, plus the material that shortens the learning curve the most.</p>
           </div>
-          <button onClick={() => setPlan(guild ? "free" : "guild")} className="rounded-lg border border-gold/50 px-3 py-2 text-xs font-bold text-gold">{guild ? "Exit Guild preview" : "Preview Guild (demo)"}</button>
+          <button onClick={() => setPlan(guild ? "free" : "premium")} className="rounded-lg border border-gold/50 px-3 py-2 text-xs font-bold text-gold">{guild ? "Exit Premium preview" : "Preview Premium (demo)"}</button>
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-3">
           {GUILD.map((g) => (
@@ -108,7 +109,7 @@ export default function AcademyPage() {
               <g.icon size={20} className="text-gold" />
               <div className="mt-2 font-semibold">{g.title}</div>
               <div className="mt-1 text-xs text-muted">{g.body}</div>
-              <div className="mt-2 text-[10px] font-bold uppercase tracking-wider text-faint">Launching with Guild</div>
+              <div className="mt-2 text-[10px] font-bold uppercase tracking-wider text-faint">Premium and Ultra</div>
             </div>
           ))}
         </div>
@@ -138,13 +139,13 @@ function LessonCard({ l }: { l: L }) {
     <Link href={`/academy/${l.id}`} className={cn("chrome group flex flex-col rounded-xl border p-4 transition", l.completed ? "border-profit/30 bg-profit/5" : l.unlocked ? "border-line bg-surface hover:border-line-strong" : "border-line bg-surface/50")}>
       <div className="flex items-center justify-between text-[11px]">
         <span className={cn("flex items-center gap-1 font-semibold", premium ? "text-gold" : "text-muted")}><F.icon size={13} /> {F.label} · {l.minutes} min</span>
-        {l.completed ? <span className="flex items-center gap-1 font-bold text-profit"><Check size={12} /> Done</span> : premium ? <span className="flex items-center gap-1 font-bold text-gold"><Crown size={11} /> Guild</span> : <span className="num font-bold text-gold">+{lessonXp(l)} XP</span>}
+        {l.completed ? <span className="flex items-center gap-1 font-bold text-profit"><Check size={12} /> Done</span> : premium ? <span className="flex items-center gap-1 font-bold text-gold"><Crown size={11} /> Premium</span> : <span className="num font-bold text-gold">+{lessonXp(l)} XP</span>}
       </div>
       <div className={cn("mt-2 text-sm font-semibold leading-snug", !l.unlocked && "text-ink/60")}>{l.title}</div>
       {!l.unlocked && (
         <div className="mt-auto pt-3 text-[11px] text-faint">
           <Lock size={11} className="mr-1 inline" />
-          {premium ? "Guild members" : `Quest: ${l.quest?.title ?? "—"}`}
+          {premium ? "Premium members" : `Quest: ${l.quest?.title ?? "—"}`}
         </div>
       )}
     </Link>

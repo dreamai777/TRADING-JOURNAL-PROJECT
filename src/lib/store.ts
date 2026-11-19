@@ -31,7 +31,7 @@ interface State {
   pendingTest: TestResult | null;
   saveTestResult: (r: TestResult) => void;
   completeLesson: (id: string, xp: number) => void;
-  setPlan: (plan: "free" | "guild") => void;
+  setPlan: (plan: "free" | "premium" | "ultra") => void;
   equipItem: (slot: string, itemId: string | null) => void;
   hydrated: boolean;
   lastXpGain: { amount: number; at: number } | null;

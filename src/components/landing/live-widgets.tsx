@@ -192,31 +192,105 @@ export function CoachTeaser() {
 }
 
 /** A month of P&L days lighting up one by one. */
+const NOTES = [
+  ["BTCUSDT.P", "Long", "Opening Range Breakout", "Waited for the 5m close above the range. Clean."],
+  ["SOLUSDT.P", "Short", "Liquidity Sweep Reversal", "Swept the Asia high, closed back inside. Textbook."],
+  ["ETHUSDT", "Long", "Trend Pullback Shot", "Bought the 20 EMA pullback on spot, held to 2R."],
+  ["RAYUSDT.P", "Long", "Volume Breakout Charge", "Moved too early on the first push. Sized down."],
+  ["BTCUSDT.P", "Short", "Failed Breakout Trap", "Breakout on weak volume, faded it to the midpoint."],
+  ["XRPUSDT", "Long", "S/R Flip Retest", "Old resistance held as support. Patient entry."],
+] as const;
+
+type Day = { date: number; pnl: number | null; pct: number; trades: number; note: (typeof NOTES)[number]; r: number };
+
+/** A month of journaled trading days in the same layout as the app's P&L calendar, with sample amounts. */
 export function LiveCalendar() {
-  const days = useMemo(() => {
-    const r = mulberry32(21);
-    return Array.from({ length: 35 }, (_, k) => {
-      const wd = k % 7;
-      if (wd >= 5 || r() < 0.12) return null;
-      return +((r() - 0.38) * 900).toFixed(0);
-    });
+  const { weeks, stats } = useMemo(() => {
+    const r = mulberry32(2611);
+    let bal = 25000;
+    const days: (Day | null)[] = Array(6).fill(null); // Nov 1, 2026 is a Sunday; the grid starts on Monday
+    for (let d = 1; d <= 30; d++) {
+      const wd = (d + 5) % 7; // 0 = Mon … 6 = Sun
+      const weekend = wd >= 5;
+      const rest = weekend ? r() < 0.7 : r() < 0.1;
+      if (rest || d > 19) { days.push({ date: d, pnl: null, pct: 0, trades: 0, note: NOTES[0], r: 0 }); continue; }
+      const pnl = Math.round(((r() - 0.36) * (weekend ? 500 : 1500)) / 5) * 5;
+      const pct = (pnl / bal) * 100;
+      bal += pnl;
+      days.push({ date: d, pnl, pct, trades: 1 + Math.floor(r() * (weekend ? 2 : 5)), note: NOTES[Math.floor(r() * NOTES.length)], r: +(pnl / 250).toFixed(1) });
+    }
+    while (days.length % 7) days.push(null);
+    const weeks: (Day | null)[][] = [];
+    for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
+    const traded = days.filter((x): x is Day => !!x && x.pnl != null);
+    const net = traded.reduce((a, x) => a + (x.pnl ?? 0), 0);
+    return { weeks, stats: { net, pct: (net / 25000) * 100, win: traded.filter((x) => (x.pnl ?? 0) > 0).length, days: traded.length, best: Math.max(...traded.map((x) => x.pnl ?? 0)), worst: Math.min(...traded.map((x) => x.pnl ?? 0)) } };
   }, []);
+  const flat = weeks.flat();
   const [shown, setShown] = useState(0);
-  const ref = useTicker(140, () => setShown((s) => (s >= days.length + 20 ? 0 : s + 1)));
-  const total = days.slice(0, shown).reduce<number>((a, b) => a + (b ?? 0), 0);
+  const [pick, setPick] = useState<number | null>(null);
+  const ref = useTicker(110, () => setShown((s) => (s >= flat.length + 40 ? 0 : s + 1)));
+  const money = (v: number) => `${v >= 0 ? "+" : "−"}$${Math.abs(v).toLocaleString()}`;
+  const pc = (v: number) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(2)}%`;
+  const lastShown = [...flat.slice(0, shown)].reverse().find((x) => x && x.pnl != null) ?? undefined;
+  const focus = (pick != null ? flat[pick] : null) ?? lastShown;
+  const tone = (v: number) => (v >= 0 ? `rgba(47,227,154,${0.12 + Math.min(1, v / 900) * 0.45})` : `rgba(255,84,112,${0.12 + Math.min(1, -v / 600) * 0.45})`);
   return (
     <div ref={ref}>
-      <div className="mb-2 flex items-center justify-between text-xs">
-        <span className="font-semibold">This month</span>
-        <span className={`num font-bold ${total >= 0 ? "text-profit" : "text-loss"}`}>{total >= 0 ? "+" : "-"}${Math.abs(total).toLocaleString()}</span>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <div className="font-display text-lg font-bold">November 2026</div>
+          <div className="text-[11px] text-muted">Sample account · $25,000 starting balance</div>
+        </div>
+        <div className="flex flex-wrap gap-2 text-[11px]">
+          <span className="rounded-lg bg-surface-2 px-2 py-1">Net <b className={`num ${stats.net >= 0 ? "text-profit" : "text-loss"}`}>{money(stats.net)} ({pc(stats.pct)})</b></span>
+          <span className="rounded-lg bg-surface-2 px-2 py-1">Green days <b className="num">{stats.win}/{stats.days}</b></span>
+          <span className="rounded-lg bg-surface-2 px-2 py-1">Best <b className="num text-profit">{money(stats.best)}</b></span>
+          <span className="rounded-lg bg-surface-2 px-2 py-1">Worst <b className="num text-loss">{money(stats.worst)}</b></span>
+        </div>
       </div>
-      <div className="grid grid-cols-7 gap-1">
-        {"MTWTFSS".split("").map((d, k) => <div key={k} className="text-center text-[9px] text-faint">{d}</div>)}
-        {days.map((v, k) => {
-          const on = k < shown;
-          const bg = v == null ? "rgba(255,255,255,.03)" : v >= 0 ? `rgba(47,227,154,${0.15 + Math.min(1, v / 600) * 0.55})` : `rgba(255,84,112,${0.15 + Math.min(1, -v / 600) * 0.55})`;
-          return <div key={k} className="aspect-square rounded-[5px] transition-all duration-300" style={{ background: on ? bg : "rgba(255,255,255,.03)", transform: on ? "scale(1)" : "scale(.85)" }} />;
+      <div className="grid grid-cols-7 gap-1 sm:grid-cols-[repeat(7,minmax(0,1fr))_minmax(0,1.1fr)]">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d} className="pb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-faint">{d}</div>)}
+        <div className="hidden pb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-faint sm:block">Week</div>
+        {weeks.map((wk, wi) => {
+          const traded = wk.filter((x): x is Day => !!x && x.pnl != null && flat.indexOf(x) < shown);
+          const wsum = traded.reduce((a, x) => a + (x.pnl ?? 0), 0), wpct = traded.reduce((a, x) => a + x.pct, 0);
+          return [
+            ...wk.map((d, k) => {
+              const idx = wi * 7 + k, on = idx < shown;
+              if (!d) return <div key={idx} />;
+              const today = d.date === 19;
+              return (
+                <button key={idx} type="button" onPointerEnter={() => setPick(idx)} onPointerLeave={() => setPick(null)} onClick={() => setPick(idx)}
+                  className={`relative flex min-h-[54px] flex-col rounded-md border p-1 text-left transition-all duration-300 sm:min-h-[66px] sm:p-1.5 ${today ? "border-accent/70" : "border-white/5"} ${pick === idx ? "ring-1 ring-white/40" : ""}`}
+                  style={{ background: on && d.pnl != null ? tone(d.pnl) : "rgba(255,255,255,.025)", opacity: on || d.date > 19 ? 1 : 0.35 }}>
+                  <span className={`text-[10px] font-semibold ${today ? "text-accent" : "text-ink/60"}`}>{d.date}{today && <span className="ml-1 hidden text-[9px] sm:inline">today</span>}</span>
+                  {on && d.pnl != null ? (
+                    <>
+                      <span className={`num mt-auto text-[9px] font-bold leading-tight sm:text-[11px] ${d.pnl >= 0 ? "text-profit" : "text-loss"}`}>{money(d.pnl)}</span>
+                      <span className="num hidden text-[9.5px] leading-tight text-ink/70 sm:block">{pc(d.pct)} · {d.trades} trade{d.trades > 1 ? "s" : ""}</span>
+                    </>
+                  ) : d.date < 19 && on ? <span className="mt-auto text-[9px] text-faint">{(d.date + 5) % 7 >= 5 ? "Rest" : "No trade"}</span> : null}
+                </button>
+              );
+            }),
+            <div key={`w${wi}`} className="hidden flex-col justify-center rounded-md border border-white/5 bg-surface-2/70 px-1.5 text-right sm:flex">
+              {traded.length ? <><span className={`num text-[11px] font-bold ${wsum >= 0 ? "text-profit" : "text-loss"}`}>{money(wsum)}</span><span className="num text-[9.5px] text-ink/60">{pc(wpct)} · W{wi + 1}</span></> : <span className="text-[10px] text-faint">W{wi + 1}</span>}
+            </div>,
+          ];
         })}
+      </div>
+      <div className="mt-3 min-h-[52px] rounded-xl border border-line bg-surface-2/70 px-3 py-2 text-xs">
+        {focus && focus.pnl != null ? (
+          <>
+            <div className="flex flex-wrap items-center gap-x-2">
+              <b>Nov {focus.date}</b>
+              <span className={`num font-bold ${focus.pnl >= 0 ? "text-profit" : "text-loss"}`}>{money(focus.pnl)} ({pc(focus.pct)})</span>
+              <span className="text-muted">· {focus.trades} trade{focus.trades > 1 ? "s" : ""} · {focus.note[0]} {focus.note[1]} · {focus.note[2]} · {focus.r >= 0 ? "+" : ""}{focus.r}R</span>
+            </div>
+            <div className="mt-0.5 italic text-ink/70">“{focus.note[3]}”</div>
+          </>
+        ) : <span className="text-muted">Hover a day to open its journal entry.</span>}
       </div>
     </div>
   );
