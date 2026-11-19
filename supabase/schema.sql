@@ -91,3 +91,86 @@ create policy "own setups" on setups for all using (user_id = auth.uid()) with c
 create policy "own trades" on trades for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "admin reads trades" on trades for select using (is_admin());
 create policy "own connections (metadata only)" on exchange_connections for select using (user_id = auth.uid());
+
+-- ---------- AI Strategy Lab, Hero Shop, Gold and referrals ----------
+
+create table strategies (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  spec jsonb not null,                    -- StrategySpec (src/core/strategy.ts), sanitized server-side
+  grade text,                             -- S++ … F from the robustness audit
+  score int,
+  from_listing uuid,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table listings (
+  id uuid primary key default gen_random_uuid(),
+  seller_id uuid not null references profiles(id) on delete cascade,
+  kind text not null check (kind in ('strategy','setup','skill','item')),
+  title text not null,
+  tagline text not null default '',
+  description text not null default '',
+  rarity text not null default 'common',
+  price_gold int not null default 0 check (price_gold >= 0),
+  price_usd numeric(10,2) not null default 0 check (price_usd >= 0),
+  payload jsonb not null,                 -- full content; public reads select a preview, buyers get it via a security-definer RPC
+  verified jsonb,                         -- computed by the server from synced trades, never client-sent
+  status text not null default 'live' check (status in ('draft','live','removed')),
+  sales int not null default 0,
+  rating numeric(2,1) not null default 0,
+  reviews int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create table purchases (
+  id uuid primary key default gen_random_uuid(),
+  buyer_id uuid not null references profiles(id) on delete cascade,
+  listing_id uuid not null references listings(id),
+  method text not null check (method in ('gold','card','crypto')),
+  amount_gold int not null default 0,
+  amount_usd numeric(10,2) not null default 0,
+  provider_ref text,                      -- Stripe payment_intent / Coinbase charge id
+  status text not null default 'pending' check (status in ('pending','paid','refunded')),
+  created_at timestamptz not null default now(),
+  unique (buyer_id, listing_id)
+);
+
+-- Append-only Gold ledger. Balance = earned (derived) + sum(gold). Written only by server functions.
+create table gold_ledger (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references profiles(id) on delete cascade,
+  gold int not null,
+  reason text not null,
+  ref uuid,
+  created_at timestamptz not null default now()
+);
+
+create table referrals (
+  id uuid primary key default gen_random_uuid(),
+  referrer_id uuid not null references profiles(id) on delete cascade,
+  friend_id uuid references profiles(id) on delete set null,
+  friend_email text,
+  code text not null,
+  status text not null default 'invited' check (status in ('invited','joined','active','paid')),
+  created_at timestamptz not null default now(),
+  check (friend_id is null or friend_id <> referrer_id)
+);
+create unique index referrals_one_per_friend on referrals(friend_id) where friend_id is not null;
+
+alter table strategies enable row level security;
+alter table listings enable row level security;
+alter table purchases enable row level security;
+alter table gold_ledger enable row level security;
+alter table referrals enable row level security;
+
+create policy "own strategies" on strategies for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "anyone reads live listings" on listings for select using (status = 'live' or seller_id = auth.uid() or is_admin());
+create policy "sellers manage own listings" on listings for insert with check (seller_id = auth.uid());
+create policy "sellers edit own listings" on listings for update using (seller_id = auth.uid() or is_admin());
+create policy "own purchases" on purchases for select using (buyer_id = auth.uid() or is_admin());
+create policy "own gold" on gold_ledger for select using (user_id = auth.uid() or is_admin());
+create policy "own referrals" on referrals for select using (referrer_id = auth.uid() or friend_id = auth.uid());
+-- Purchases, gold_ledger and referral status changes are written only by service-role code
+-- (payment webhooks and the gold spend RPC), so no insert/update policies exist for users.
