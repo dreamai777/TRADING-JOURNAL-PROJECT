@@ -25,10 +25,32 @@ Five agents read the journal: Oracle (trade analyst: grade, what went right and 
 Bulwark (risk), Empath (sentiment) and Sensei (personal coach), plus custom agents traders build with their own
 rules and voice. Agent reports are computed on-device in `src/core/ai/` and need no key.
 
-Chat goes to Claude through `src/app/api/ai/route.ts`. Set these env vars on the host (Netlify or Vercel):
+Chat goes to Claude through `src/app/api/ai/route.ts`, which talks to a provider-agnostic interface in
+`src/server/ai/` (`provider.ts` is the contract, `anthropic.ts` the Claude implementation). Everyday chat uses
+Claude Sonnet 5.5; the "Deep review" button on a trade uses Claude Opus 5.5. The key never leaves the server.
+
+Cost control (`src/core/ai/quota.ts`, counters in Netlify Blobs, in memory elsewhere):
+
+| Plan | AI chats a month | Per minute |
+|---|---|---|
+| Free | 20 | 6 |
+| Premium | 200 | 10 |
+| Ultra | 2,000 (fair use) | 20 |
+
+A chat costs 1 credit, a deep review 3. Free credits are also capped per network (3x the free limit), and a
+global daily budget stops all AI calls once the day's estimated spend is reached.
+
+Env vars on the host (Netlify or Vercel):
 
 - `ANTHROPIC_API_KEY` (required for Claude; without it chat falls back to the offline engine)
-- `ANTHROPIC_MODEL` (optional, defaults to `claude-opus-5-5`)
+- `AI_DAILY_BUDGET_USD` (optional, default `5`; `0` turns the cap off)
+- `AI_UNLIMITED_USERS` (optional, comma-separated emails that skip monthly limits, e.g. the owner's)
+- `AI_TRUST_CLIENT_PLAN` (optional; `false` treats every caller as Free until server-side auth lands)
+- `ANTHROPIC_MODEL_FAST` / `ANTHROPIC_MODEL_DEEP` (optional overrides, default `claude-sonnet-5-5` / `claude-opus-5-5`)
+- `AI_PROVIDER` (optional, default `anthropic`; for future providers)
+
+Until Supabase auth is wired in, the plan and user id come from the browser, so the daily budget is the real
+safety net. `resolveCaller()` in `src/server/ai/guard.ts` is the one place to switch to a session lookup.
 
 ## Architecture
 
