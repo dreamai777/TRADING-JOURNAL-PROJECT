@@ -6,11 +6,11 @@ export const metadata = { title: "About & Roadmap · EdgeForge" };
 const PHASES = [
   {
     tag: "Now", title: "Phase 1 · Forge", status: "live", color: "#2fe39a",
-    items: ["One-snap journaling with one-line parser", "Dashboard: win rate, profit factor, expectancy, drawdown, Forge Score", "Arsenal: setups as weapons with XP, levels and earned rarity", "Playbooks with pre-trade checklists", "Mindset & Risk: tilt meter, emotion and mistake costs, position sizing", "Trade replay and social share cards", "CSV import, 14-currency display toggle", "Multi-asset backtest lab", "User and admin roles"],
+    items: ["One-snap journaling with one-line parser", "Dashboard: win rate, profit factor, expectancy, drawdown, Forge Score", "Arsenal: setups as weapons with XP, levels and earned rarity", "Playbooks with pre-trade checklists", "Mindset & Risk: tilt meter, emotion and mistake costs, position sizing", "Trade replay and social share cards", "CSV import, 14-currency display toggle", "Multi-asset backtest lab", "User and admin roles", "AI Council: trade analyst, habit, risk and sentiment agents, personal coach and custom agents (Claude)", "Notebook, trade review pages with run-up and heat, Reports with heatmaps and Compare"],
   },
   {
     tag: "Next", title: "Phase 2 · Connect", status: "building", color: "#c8f53b",
-    items: ["Live Binance, OKX and Bitget sync (read-only keys, server-side workers)", "Supabase auth with Google, Apple and Discord login", "Real candles for replay (exchange klines)", "Claude-powered AI coach with weekly reports", "Screenshot and chart uploads per trade", "PWA install + push reminders to journal"],
+    items: ["Live Binance, OKX and Bitget sync (read-only keys, server-side workers)", "Supabase auth with Google, Apple and Discord login", "Real candles for replay (exchange klines)", "Live market sentiment feed (fear and greed, funding, long/short) for the Sentiment agent", "AI pre-trade check against your Spellbook", "Screenshot and chart uploads per trade", "PWA install + push reminders to journal"],
   },
   {
     tag: "Later", title: "Phase 3 · Compete", status: "planned", color: "#a78bfa",

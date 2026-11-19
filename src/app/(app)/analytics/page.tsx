@@ -1,7 +1,9 @@
 "use client";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Compare, DayHourHeatmap, DurationTable, SessionTable, TagsAndMistakes } from "@/components/reports";
+import { useCouncil } from "@/lib/ai";
 import { CountBars, DrawdownChart, EquityChart, PnlBars } from "@/components/charts";
-import { Card, CardHeader, Money, PageHeader, cn, fmtNum, fmtPct } from "@/components/ui";
+import { Card, CardHeader, Money, PageHeader, Segmented, cn, fmtNum, fmtPct } from "@/components/ui";
 import { MARKETS } from "@/core/markets";
 import { byHour, byWeekday, equityCurve, groupBy, rDistribution } from "@/core/stats";
 import { useRangedJournal } from "@/lib/hooks";
@@ -9,6 +11,8 @@ import { RangePicker } from "@/components/range-picker";
 
 export default function AnalyticsPage() {
   const { trades, setups, summary: s, startEquity: account } = useRangedJournal();
+  const { council } = useCouncil();
+  const [tab, setTab] = useState<"overview" | "time" | "duration" | "tags" | "compare">("overview");
   const curve = useMemo(() => equityCurve(trades, account), [trades, account]);
   const setupRows = useMemo(() => groupBy(trades, (t) => t.setupId).map((g) => ({ ...g, setup: setups.find((x) => x.id === g.key) })).sort((a, b) => b.summary.netPnl - a.summary.netPnl), [trades, setups]);
   const symbolRows = useMemo(() => groupBy(trades, (t) => t.symbol).sort((a, b) => b.summary.netPnl - a.summary.netPnl), [trades]);
@@ -26,7 +30,13 @@ export default function AnalyticsPage() {
 
   return (
     <div>
-      <PageHeader title="Analytics" subtitle="Find where your edge lives, and where it leaks." right={<RangePicker />} />
+      <PageHeader title="Reports" subtitle="Find where your edge lives, and where it leaks." right={<RangePicker />} />
+      <div className="mb-4 overflow-x-auto"><Segmented value={tab} onChange={setTab} options={[{ value: "overview", label: "Overview" }, { value: "time", label: "Day & time" }, { value: "duration", label: "Duration" }, { value: "tags", label: "Mistakes, tags & grades" }, { value: "compare", label: "Compare" }]} /></div>
+      {tab === "time" && <div className="space-y-4"><DayHourHeatmap trades={trades} /><div className="grid gap-4 xl:grid-cols-2"><SessionTable trades={trades} /><Card><CardHeader title="By weekday" subtitle="Day the trade was opened" /><div className="px-2 pb-3"><PnlBars data={byWeekday(trades)} x="day" /></div></Card></div></div>}
+      {tab === "duration" && <DurationTable trades={trades} />}
+      {tab === "tags" && <TagsAndMistakes trades={trades} reviews={council.reviews} />}
+      {tab === "compare" && <Compare trades={trades} setups={setups} />}
+      {tab === "overview" && <>
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[14px] border border-line bg-line sm:grid-cols-4 xl:grid-cols-10">
         {metrics.map(([k, v]) => (
           <div key={k} className="bg-surface px-4 py-3">
@@ -116,6 +126,7 @@ export default function AnalyticsPage() {
           </Card>
         )}
       </div>
+      </>}
     </div>
   );
 }
