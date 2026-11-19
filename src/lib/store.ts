@@ -5,6 +5,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { DEMO_ADMIN_ID, DEMO_TRADER_ID, demoSetups, demoTrades, demoUsers } from "@/core/demo";
+import { exchangeSymbol, parseSymbol, type CryptoMarket, type ExchangeId } from "@/core/markets";
 import { uid } from "@/core/random";
 import type { RangeKey } from "@/core/stats";
 import type { TestResult } from "@/core/trader-test";
@@ -12,10 +13,16 @@ import type { CurrencyCode, JobClass, Role, Setup, Trade, User } from "@/core/ty
 
 export interface Connection {
   userId: string;
-  exchange: "binance" | "okx" | "bitget";
+  exchange: ExchangeId;
   label: string;
+  /** auto: syncs on a schedule. manual: only when you press Sync now. */
+  mode?: "auto" | "manual";
+  /** Which markets to pull from this account (spot, perps, bots, ...). */
+  markets?: CryptoMarket[];
   connectedAt: string;
   lastSync: string;
+  /** Real exchange sync through the server (OKX today). The others are still simulated. */
+  live?: boolean;
 }
 
 interface State {
@@ -36,8 +43,11 @@ interface State {
   hydrated: boolean;
   lastXpGain: { amount: number; at: number } | null;
   connections: Connection[];
-  connectExchange: (exchange: Connection["exchange"], label: string) => number;
+  connectExchange: (exchange: Connection["exchange"], label: string, opts?: { mode?: Connection["mode"]; markets?: CryptoMarket[] }) => number;
+  updateConnection: (exchange: Connection["exchange"], patch: Partial<Pick<Connection, "mode" | "markets" | "label">>) => void;
   disconnectExchange: (exchange: Connection["exchange"]) => void;
+  /** Saves a real (server-side) connection and merges synced trades, skipping ones already in the journal. Returns how many were new. */
+  mergeSynced: (exchange: Connection["exchange"], trades: Omit<Trade, "id" | "userId">[], conn?: { label?: string; mode?: Connection["mode"]; markets?: CryptoMarket[] }) => number;
 
   login: (email: string, password: string) => { ok: true; user: User } | { ok: false; error: string };
   signup: (name: string, email: string, password: string) => { ok: true } | { ok: false; error: string };
@@ -106,18 +116,46 @@ export const useStore = create<State>()(
       hydrated: false,
       lastXpGain: null,
       connections: [],
-      connectExchange(exchange, label) {
+      connectExchange(exchange, label, opts) {
         // Prototype: simulates the first sync by pulling recent fills. Production: server-side CCXT
         // worker with encrypted read-only keys; the browser never holds the secret after submit.
         const me = get().sessionUserId!;
         const now = new Date().toISOString();
-        const fresh = demoTrades(me, 12, Date.now(), Math.floor(Math.random() * 1e6))
-          .filter((t) => t.assetClass === "crypto")
-          .map((t) => ({ ...t, id: uid("t"), source: exchange, setupId: undefined, emotion: undefined, rulesFollowed: undefined, notes: undefined, mistakes: [], tags: ["synced"] }));
+        const prev = get().connections.find((c) => c.userId === me && c.exchange === exchange);
+        const markets = opts?.markets ?? prev?.markets ?? ["spot", "perp"];
+        const mode = opts?.mode ?? prev?.mode ?? "auto";
+        const fresh = demoTrades(me, 30, Date.now(), Math.floor(Math.random() * 1e6))
+          .filter((t) => t.assetClass === "crypto" && (!t.market || markets.includes(t.market)))
+          .slice(0, 12)
+          .map((t) => {
+            const p = parseSymbol(t.symbol, t.market);
+            const market = t.market ?? p.market;
+            return { ...t, id: uid("t"), source: exchange, exchange, instrument: exchangeSymbol(exchange, p.base, p.quote, market, p.expiry), setupId: undefined, emotion: undefined, rulesFollowed: undefined, notes: undefined, mistakes: [], tags: ["synced", market] };
+          });
         set((s) => ({
           trades: [...s.trades, ...fresh],
-          connections: [...s.connections.filter((c) => !(c.userId === me && c.exchange === exchange)), { userId: me, exchange, label, connectedAt: now, lastSync: now }],
+          connections: [...s.connections.filter((c) => !(c.userId === me && c.exchange === exchange)), { userId: me, exchange, label, mode, markets, connectedAt: prev?.connectedAt ?? now, lastSync: now }],
         }));
+        return fresh.length;
+      },
+      updateConnection: (exchange, patch) => set((s) => ({ connections: s.connections.map((c) => (c.userId === s.sessionUserId && c.exchange === exchange ? { ...c, ...patch } : c)) })),
+      mergeSynced(exchange, incoming, conn) {
+        const me = get().sessionUserId!;
+        const now = new Date().toISOString();
+        const have = new Set(get().trades.filter((t) => t.userId === me && t.externalId).map((t) => t.externalId));
+        const fresh = incoming.filter((t) => t.externalId && !have.has(t.externalId)).map((t) => ({ ...t, id: uid("t"), userId: me }));
+        set((s) => {
+          const prev = s.connections.find((c) => c.userId === me && c.exchange === exchange);
+          const next: Connection = {
+            userId: me, exchange, live: true,
+            label: conn?.label ?? prev?.label ?? "Main account",
+            mode: conn?.mode ?? prev?.mode ?? "manual",
+            markets: conn?.markets ?? prev?.markets ?? ["spot", "perp"],
+            connectedAt: prev?.connectedAt ?? now,
+            lastSync: now,
+          };
+          return { trades: [...s.trades, ...fresh], connections: [...s.connections.filter((c) => !(c.userId === me && c.exchange === exchange)), next] };
+        });
         return fresh.length;
       },
       disconnectExchange: (exchange) => set((s) => ({ connections: s.connections.filter((c) => !(c.userId === s.sessionUserId && c.exchange === exchange)) })),

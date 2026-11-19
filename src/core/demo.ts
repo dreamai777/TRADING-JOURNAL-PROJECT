@@ -1,5 +1,6 @@
 // Seeded demo dataset so the app runs out of the box.
 import { gaussian, mulberry32 } from "./random";
+import { displaySymbol, exchangeSymbol, type CryptoMarket, type ExchangeId } from "./markets";
 import type { AssetClass, Emotion, Mistake, Setup, Trade, TradeSource, User } from "./types";
 
 export const DEMO_TRADER_ID = "u_trader";
@@ -197,7 +198,25 @@ export function demoTrades(userId = DEMO_TRADER_ID, count = 160, now = Date.now(
       replaySaved: rand() < 0.15,
     });
   }
-  return trades;
+  return withCryptoMarkets(trades, seed);
+}
+
+/** Gives demo crypto trades a market type, exchange, instrument id, leverage and funding (separate RNG, so P&L stays stable). */
+function withCryptoMarkets(trades: Trade[], seed: number): Trade[] {
+  const r = mulberry32(seed * 31 + 5);
+  const exchanges: ExchangeId[] = ["binance", "okx", "bitget", "bybit"];
+  return trades.map((t) => {
+    if (t.assetClass !== "crypto") return t;
+    const x = r();
+    let market: CryptoMarket = x < 0.62 ? "perp" : x < 0.8 ? "spot" : x < 0.88 ? "grid" : x < 0.94 ? "dca" : "copy";
+    if (t.side === "short" && (market === "spot" || market === "grid" || market === "dca")) market = "perp";
+    const ex = (exchanges as string[]).includes(t.source) ? (t.source as ExchangeId) : exchanges[Math.floor(r() * 4)];
+    const base = t.symbol.replace(/USDT$/, "");
+    const lev = market === "perp" || market === "copy" ? [3, 5, 10, 10, 20][Math.floor(r() * 5)] : undefined;
+    const notional = t.entry * t.qty;
+    const funding = lev ? +(notional * 0.0001 * (0.5 + r()) * (t.side === "long" ? 1 : -0.6)).toFixed(2) : undefined;
+    return { ...t, source: t.source === "demo" ? ex : t.source, market, exchange: ex, leverage: lev, funding, symbol: displaySymbol(base, "USDT", market), instrument: exchangeSymbol(ex, base, "USDT", market), tags: t.tags.map((g) => (g === "perp" ? market : g)) };
+  });
 }
 
 function round(v: number) {

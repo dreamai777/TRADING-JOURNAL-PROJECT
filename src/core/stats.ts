@@ -2,7 +2,7 @@ import { POSITIVE_EMOTIONS, type Trade, type TradeComputed } from "./types";
 
 export function computeTrade(t: Trade): TradeComputed {
   const dir = t.side === "long" ? 1 : -1;
-  const pnl = (t.exit - t.entry) * t.qty * dir - t.fees;
+  const pnl = (t.exit - t.entry) * t.qty * dir - t.fees - (t.funding ?? 0);
   const risk = t.stopLoss != null ? Math.abs(t.entry - t.stopLoss) * t.qty + t.fees : undefined;
   const r = risk && risk > 0 ? pnl / risk : undefined;
   const holdMinutes = Math.max(0, (Date.parse(t.closedAt) - Date.parse(t.openedAt)) / 60000);

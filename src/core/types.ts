@@ -1,11 +1,12 @@
 // Pure domain types. No React, no Next, no browser APIs.
+import type { CryptoMarket, ExchangeId } from "./markets";
 import type { TestResult } from "./trader-test";
 // Everything in src/core is shared with the future Expo mobile app.
 
 export type Role = "user" | "admin";
 export type AssetClass = "crypto" | "forex" | "futures" | "equities" | "options";
 export type Side = "long" | "short";
-export type TradeSource = "manual" | "csv" | "okx" | "binance" | "bitget" | "demo";
+export type TradeSource = "manual" | "csv" | "okx" | "binance" | "bitget" | "bybit" | "demo";
 
 export type Emotion =
   | "calm"
@@ -76,6 +77,16 @@ export interface Trade {
   notes?: string;
   source: TradeSource;
   replaySaved?: boolean;
+  /** Crypto only: spot, perpetual, dated futures, margin, grid/DCA bot, copy trading, options. */
+  market?: CryptoMarket;
+  exchange?: ExchangeId;
+  /** The exchange's own instrument id, e.g. OKX "SOL-USDT-SWAP". `symbol` holds the unified name, e.g. "SOLUSDT.P". */
+  instrument?: string;
+  leverage?: number;
+  /** Net funding paid (+) or received (−) in USD over the life of a perpetual position. */
+  funding?: number;
+  /** Stable id from the exchange (e.g. "okx:SWAP:<posId>:<open>:<close>") so a re-sync never duplicates a trade. */
+  externalId?: string;
 }
 
 export type WeaponClass = "Breakout" | "Reversal" | "Trend" | "Scalp" | "Range" | "News";

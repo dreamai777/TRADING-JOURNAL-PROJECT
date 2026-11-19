@@ -207,10 +207,10 @@ export default function Home() {
         <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
           <Panel title="Live position" tag="Live"><LiveChart /></Panel>
           <Panel title="Portfolio tracker" tag="Synced"><LivePortfolio /></Panel>
-          <Panel title="AI coach" tag="Preview" className="lg:order-last"><CoachTeaser /></Panel>
+          <Panel title="AI Council" tag="Live" className="lg:order-last"><CoachTeaser /></Panel>
           <Panel title="Trading journal calendar" tag="Auto" className="lg:col-span-2"><LiveCalendar /></Panel>
         </div>
-        <p className="mt-4 text-center text-xs text-faint">The AI coach preview shows the kind of answers it gives. Full coach arrives in Phase 2.</p>
+        <p className="mt-4 text-center text-xs text-faint">Five AI agents (trade analyst, habits, risk, sentiment and your personal coach) plus custom agents you build. Powered by Claude.</p>
       </Section>
 
       <Vista line="Beyond the ridge, the Titan of Drawdown wakes." sub="Every account meets it. Prepared traders survive it." />
