@@ -13,11 +13,15 @@ import type { Trade, TradeComputed } from "@/core/types";
 import { useJournal, useRangedJournal } from "@/lib/hooks";
 import { RangePicker } from "@/components/range-picker";
 import { useStore } from "@/lib/store";
+import Link from "next/link";
+import { GradeBadge } from "@/components/ai/report-view";
+import { useCouncil } from "@/lib/ai";
 
 const PAGE = 25;
 
 export default function JournalPage() {
   const { me, trades, setups } = useRangedJournal();
+  const { council } = useCouncil();
   const [q, setQ] = useState("");
   const [outcome, setOutcome] = useState<"all" | "win" | "loss">("all");
   const [setupF, setSetupF] = useState("");
@@ -99,6 +103,7 @@ export default function JournalPage() {
               <thead>
                 <tr className="border-b border-line text-left text-[11px] font-semibold uppercase tracking-[.08em] text-faint">
                   <th className="px-4 py-3">Closed</th>
+                  <th className="px-2 py-3 text-center" title="AI process grade from Oracle">AI</th>
                   <th className="px-2 py-3">Symbol</th>
                   <th className="px-2 py-3">Side</th>
                   <th className="px-2 py-3">Weapon</th>
@@ -116,6 +121,7 @@ export default function JournalPage() {
                   return (
                     <tr key={t.id} onClick={() => setOpenId(t.id)} className="cursor-pointer border-b border-line/60 transition-colors last:border-0 hover:bg-surface-2">
                       <td className="whitespace-nowrap px-4 py-2.5 text-muted">{fmtDateTime(t.closedAt)}</td>
+                      <td className="px-2 py-2.5 text-center">{council.reviews.get(t.id) ? <GradeBadge grade={council.reviews.get(t.id)!.grade} size="sm" /> : "—"}</td>
                       <td className="px-2 py-2.5 font-semibold">
                         <span className="whitespace-nowrap">{t.symbol}</span>
                         {t.replaySaved && <Film size={12} className="ml-1.5 inline text-violet" />}
@@ -161,7 +167,10 @@ function TradeDetail({ trade, onClose }: { trade: TradeComputed; onClose: () => 
   const setup = setups.find((x) => x.id === trade.setupId);
   return (
     <Modal open onClose={onClose} wide title={<span className="flex items-center gap-2"><Pill tone={trade.side === "long" ? "profit" : "loss"} className="uppercase">{trade.side}</Pill> {trade.symbol} <Money usd={trade.pnl} sign className="ml-1" /></span>}>
-      <Segmented value={tab} onChange={setTab} className="mb-5" options={[{ value: "review", label: "Review" }, { value: "replay", label: <span className="flex items-center gap-1.5"><Film size={13} /> Replay</span> }, { value: "share", label: <span className="flex items-center gap-1.5"><Share2 size={13} /> Share</span> }]} />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+      <Segmented value={tab} onChange={setTab} options={[{ value: "review", label: "Review" }, { value: "replay", label: <span className="flex items-center gap-1.5"><Film size={13} /> Replay</span> }, { value: "share", label: <span className="flex items-center gap-1.5"><Share2 size={13} /> Share</span> }]} />
+      <Link href={`/journal/${trade.id}`} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-violet/15 px-3 text-xs font-bold text-violet hover:bg-violet/25">🔮 Full AI review & trade page →</Link>
+      </div>
       {tab === "review" && (
         <div className="grid gap-5 lg:grid-cols-[1fr_1.2fr]">
           <div className="grid grid-cols-2 gap-3 self-start">

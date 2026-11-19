@@ -1,5 +1,5 @@
 // Rule-based coach. Implements the same CoachProvider interface a Claude-backed coach will use,
-// so swapping in the LLM later is a one-line change (see src/lib/coach.ts).
+// so swapping in the LLM later is a one-line change (see src/lib/ai.ts and src/app/api/ai/route.ts).
 import { emotionImpact, groupBy, mistakeCost, summarize, tiltMeter, byWeekday, byHour } from "./stats";
 import type { Setup, TradeComputed } from "./types";
 
