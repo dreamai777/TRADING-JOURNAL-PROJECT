@@ -15,7 +15,16 @@ import { useJournal } from "./hooks";
 export interface ChatMsg {
   role: "user" | "assistant";
   content: string;
-  source?: "claude" | "offline";
+  source?: "claude" | "offline" | "notice";
+}
+
+/** What the server says about AI: is a key set, and how many credits this user has left. */
+export interface AiStatus {
+  configured: boolean;
+  provider?: string;
+  models?: { fast: string; deep: string };
+  costs?: { chat: number; deep: number };
+  usage?: { plan: string; used: number; limit: number | null; remaining: number | null; resetsAt: string; budgetReached: boolean } | null;
 }
 
 export interface NotebookEntry {
@@ -36,6 +45,7 @@ interface AiState {
   chats: Record<string, ChatMsg[]>; // key: `${userId}:${agentId}`
   notebook: NotebookEntry[];
   aiMode: "unknown" | "claude" | "offline";
+  status: AiStatus | null;
   saveCustomAgent: (a: Omit<CustomAgent, "id" | "createdAt"> & { id?: string }) => string;
   deleteCustomAgent: (id: string) => void;
   pushChat: (key: string, m: ChatMsg) => void;
@@ -43,6 +53,7 @@ interface AiState {
   clearChat: (key: string) => void;
   saveNote: (e: NotebookEntry) => void;
   setMode: (m: AiState["aiMode"]) => void;
+  setStatus: (st: AiStatus | null) => void;
 }
 
 export const useAi = create<AiState>()(
@@ -52,6 +63,7 @@ export const useAi = create<AiState>()(
       chats: {},
       notebook: [],
       aiMode: "unknown",
+      status: null,
       saveCustomAgent(a) {
         const id = a.id ?? uid("ag");
         set((s) => ({
@@ -73,6 +85,7 @@ export const useAi = create<AiState>()(
       clearChat: (key) => set((s) => ({ chats: { ...s.chats, [key]: [] } })),
       saveNote: (e) => set((s) => ({ notebook: [...s.notebook.filter((x) => !(x.userId === e.userId && x.date === e.date)), e] })),
       setMode: (aiMode) => set({ aiMode }),
+      setStatus: (status) => set((s) => ({ status, aiMode: status ? (status.configured ? "claude" : "offline") : s.aiMode })),
     }),
     { name: "edgeforge-ai-v1", storage: createJSONStorage(() => localStorage), skipHydration: true, partialize: (s) => ({ customAgents: s.customAgents, chats: s.chats, notebook: s.notebook }) },
   ),
@@ -91,14 +104,29 @@ export function useCouncil() {
 
 type CouncilBundle = ReturnType<typeof useCouncil>;
 
+type Me = CouncilBundle["me"];
+const identity = (me: Me) => (me ? { id: me.id, email: me.email, plan: me.plan } : undefined);
+
+/** Asks the server whether Claude is configured and how many credits are left. Safe to call often. */
+export async function refreshAiStatus(me: Me) {
+  try {
+    const id = identity(me);
+    const res = await fetch("/api/ai", { cache: "no-store", headers: id ? { "x-ef-user": id.id, "x-ef-email": id.email ?? "", "x-ef-plan": String(id.plan ?? "free") } : {} });
+    if (!res.ok) return;
+    useAi.getState().setStatus((await res.json()) as AiStatus);
+  } catch {
+    /* offline; keep the last known status */
+  }
+}
+
 /**
  * Asks an agent a question. Streams Claude's answer into the chat when the server has a key; otherwise
  * writes the offline engine's answer. Returns where the answer came from.
  */
-export async function askAgent(opts: { bundle: CouncilBundle; agent: CoreAgentId | "custom"; custom?: CustomAgent; chatKey: string; question: string; review?: TradeReview }) {
-  const { bundle, agent, custom, chatKey, question, review } = opts;
+export async function askAgent(opts: { bundle: CouncilBundle; agent: CoreAgentId | "custom"; custom?: CustomAgent; chatKey: string; question: string; review?: TradeReview; deep?: boolean }) {
+  const { bundle, agent, custom, chatKey, question, review, deep } = opts;
   const ai = useAi.getState();
-  const history = (ai.chats[chatKey] ?? []).map(({ role, content }) => ({ role, content }));
+  const history = (ai.chats[chatKey] ?? []).filter((m) => m.source !== "notice").map(({ role, content }) => ({ role, content }));
   ai.pushChat(chatKey, { role: "user", content: question });
   ai.pushChat(chatKey, { role: "assistant", content: "", source: "claude" });
 
@@ -121,8 +149,15 @@ export async function askAgent(opts: { bundle: CouncilBundle; agent: CoreAgentId
     const res = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ agent, custom, setupNames: bundle.setups.map((s) => ({ id: s.id, name: s.name })), context, messages: [...history, { role: "user", content: question }] }),
+      body: JSON.stringify({ agent, custom, deep, user: identity(bundle.me), setupNames: bundle.setups.map((s) => ({ id: s.id, name: s.name })), context, messages: [...history.filter((m) => m.content), { role: "user", content: question }] }),
     });
+    if (res.status === 429 || res.status === 402) {
+      // Out of credits or plan-locked: say so plainly instead of silently switching engines.
+      const info = (await res.json().catch(() => ({}))) as { message?: string };
+      useAi.getState().patchLastChat(chatKey, info.message ?? "You're out of AI chats for now.", "notice");
+      void refreshAiStatus(bundle.me);
+      return "notice" as const;
+    }
     if (!res.ok || !res.body) return offline();
     useAi.getState().setMode("claude");
     const reader = res.body.getReader();
@@ -134,6 +169,7 @@ export async function askAgent(opts: { bundle: CouncilBundle; agent: CoreAgentId
       text += dec.decode(value, { stream: true });
       useAi.getState().patchLastChat(chatKey, text, "claude");
     }
+    void refreshAiStatus(bundle.me);
     return "claude" as const;
   } catch {
     return offline();
