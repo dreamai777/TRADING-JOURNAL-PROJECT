@@ -21,6 +21,8 @@ export interface Connection {
   markets?: CryptoMarket[];
   connectedAt: string;
   lastSync: string;
+  /** Real exchange sync through the server (OKX today). The others are still simulated. */
+  live?: boolean;
 }
 
 interface State {
@@ -44,6 +46,8 @@ interface State {
   connectExchange: (exchange: Connection["exchange"], label: string, opts?: { mode?: Connection["mode"]; markets?: CryptoMarket[] }) => number;
   updateConnection: (exchange: Connection["exchange"], patch: Partial<Pick<Connection, "mode" | "markets" | "label">>) => void;
   disconnectExchange: (exchange: Connection["exchange"]) => void;
+  /** Saves a real (server-side) connection and merges synced trades, skipping ones already in the journal. Returns how many were new. */
+  mergeSynced: (exchange: Connection["exchange"], trades: Omit<Trade, "id" | "userId">[], conn?: { label?: string; mode?: Connection["mode"]; markets?: CryptoMarket[] }) => number;
 
   login: (email: string, password: string) => { ok: true; user: User } | { ok: false; error: string };
   signup: (name: string, email: string, password: string) => { ok: true } | { ok: false; error: string };
@@ -135,6 +139,25 @@ export const useStore = create<State>()(
         return fresh.length;
       },
       updateConnection: (exchange, patch) => set((s) => ({ connections: s.connections.map((c) => (c.userId === s.sessionUserId && c.exchange === exchange ? { ...c, ...patch } : c)) })),
+      mergeSynced(exchange, incoming, conn) {
+        const me = get().sessionUserId!;
+        const now = new Date().toISOString();
+        const have = new Set(get().trades.filter((t) => t.userId === me && t.externalId).map((t) => t.externalId));
+        const fresh = incoming.filter((t) => t.externalId && !have.has(t.externalId)).map((t) => ({ ...t, id: uid("t"), userId: me }));
+        set((s) => {
+          const prev = s.connections.find((c) => c.userId === me && c.exchange === exchange);
+          const next: Connection = {
+            userId: me, exchange, live: true,
+            label: conn?.label ?? prev?.label ?? "Main account",
+            mode: conn?.mode ?? prev?.mode ?? "manual",
+            markets: conn?.markets ?? prev?.markets ?? ["spot", "perp"],
+            connectedAt: prev?.connectedAt ?? now,
+            lastSync: now,
+          };
+          return { trades: [...s.trades, ...fresh], connections: [...s.connections.filter((c) => !(c.userId === me && c.exchange === exchange)), next] };
+        });
+        return fresh.length;
+      },
       disconnectExchange: (exchange) => set((s) => ({ connections: s.connections.filter((c) => !(c.userId === s.sessionUserId && c.exchange === exchange)) })),
 
       login(email, password) {

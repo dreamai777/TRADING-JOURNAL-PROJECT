@@ -85,6 +85,8 @@ export interface Trade {
   leverage?: number;
   /** Net funding paid (+) or received (−) in USD over the life of a perpetual position. */
   funding?: number;
+  /** Stable id from the exchange (e.g. "okx:SWAP:<posId>:<open>:<close>") so a re-sync never duplicates a trade. */
+  externalId?: string;
 }
 
 export type WeaponClass = "Breakout" | "Reversal" | "Trend" | "Scalp" | "Range" | "News";

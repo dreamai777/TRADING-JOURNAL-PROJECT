@@ -1,12 +1,16 @@
 "use client";
-import { CheckCircle2, Hand, Lock, RefreshCw, ShieldCheck, Zap } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Hand, Lock, RefreshCw, ShieldCheck, Zap } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Button, Card, CardHeader, Input, Label, Modal, PageHeader, Pill, Segmented, fmtDateTime } from "@/components/ui";
 import { EXCHANGES, MARKETS, displaySymbol, type CryptoMarket, type ExchangeInfo } from "@/core/markets";
 import { PLAN_LIMITS, normalizePlan } from "@/core/plans";
 import { useJournal } from "@/lib/hooks";
+import { OKX_REAL_MARKETS, connectOkx, disconnectOkx, runOkxSync, type OkxRegion } from "@/lib/okx-sync";
 import { useStore, type Connection } from "@/lib/store";
+
+/** Exchanges with real, server-side sync. The rest still run the simulated prototype sync. */
+const REAL = new Set(["okx"]);
 
 const SOON = [
   { name: "Breakout (prop)", note: "Prop firm accounts", icon: "🏆" },
@@ -30,6 +34,20 @@ export default function ConnectionsPage() {
   const connections = useStore((s) => s.connections).filter((c) => c.userId === me?.id);
   const [open, setOpen] = useState<ExchangeInfo | null>(null);
   const [syncMsg, setSyncMsg] = useState("");
+  const [syncErr, setSyncErr] = useState("");
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const syncNow = async (ex: ExchangeInfo, c: Connection) => {
+    setSyncErr(""); setSyncMsg("");
+    if (!REAL.has(ex.id)) { const n = useStore.getState().connectExchange(ex.id, c.label); setSyncMsg(`${ex.name} (demo): ${n} sample trades added.`); return; }
+    setSyncing(ex.id);
+    try { setSyncMsg(await runOkxSync(c)); } catch (e) { setSyncErr((e as Error).message); } finally { setSyncing(null); }
+  };
+  const disconnect = async (ex: ExchangeInfo) => {
+    setSyncErr("");
+    if (REAL.has(ex.id)) { try { await disconnectOkx(); } catch (e) { setSyncErr((e as Error).message); return; } }
+    useStore.getState().disconnectExchange(ex.id);
+    setSyncMsg(`${ex.name} disconnected${REAL.has(ex.id) ? " and your API key was deleted from our server" : ""}. Trades already imported stay in your journal.`);
+  };
   const plan = normalizePlan(me?.plan);
   const limit = PLAN_LIMITS[plan].syncAccounts;
   const atLimit = connections.length >= limit;
@@ -37,6 +55,7 @@ export default function ConnectionsPage() {
   return (
     <div>
       <PageHeader title="Connections" subtitle="Journal by hand, import a CSV, or let your exchange sync for you. Read-only keys, no trading or withdrawal permissions, ever." />
+      {syncErr && <div className="mb-4 flex items-start gap-2 rounded-lg border border-loss/30 bg-loss/10 px-4 py-2.5 text-sm text-loss"><AlertTriangle size={16} className="mt-0.5 shrink-0" /> {syncErr}</div>}
       {syncMsg && <div className="mb-4 flex items-center gap-2 rounded-lg border border-profit/30 bg-profit/10 px-4 py-2.5 text-sm text-profit"><CheckCircle2 size={16} /> {syncMsg}</div>}
 
       <div className="mb-6 grid gap-3 md:grid-cols-3">
@@ -62,10 +81,10 @@ export default function ConnectionsPage() {
                   <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-line-strong bg-surface-3 font-display text-lg font-bold" style={{ color: ex.color }}>{ex.mark}</div>
                   <div>
                     <div className="font-display text-lg font-semibold">{ex.name}</div>
-                    <div className="whitespace-nowrap text-[11px] text-muted">{ex.markets.length} market types</div>
+                    <div className="whitespace-nowrap text-[11px] text-muted">{REAL.has(ex.id) ? <span className="font-semibold text-profit">Real sync</span> : "Demo sync"} · {ex.markets.length} market types</div>
                   </div>
                 </div>
-                {c ? <Pill tone="profit">● {c.mode === "manual" ? "Manual" : "Live"}</Pill> : <Pill>Not connected</Pill>}
+                {c ? <Pill tone="profit">● {c.live ? (c.mode === "manual" ? "Connected" : "Live") : "Demo"}</Pill> : <Pill>Not connected</Pill>}
               </div>
               <div className="mt-4 flex flex-wrap gap-1">
                 {ex.markets.map((m) => {
@@ -77,13 +96,13 @@ export default function ConnectionsPage() {
                 <div className="mt-4 flex flex-1 flex-col justify-end space-y-3">
                   <div className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-xs text-muted">
                     <div><span className="text-faint">Account:</span> {c.label}</div>
-                    <div><span className="text-faint">Sync:</span> {c.mode === "manual" ? "when you press Sync now" : plan === "free" ? "automatic, daily" : "automatic, real-time"}</div>
+                    <div><span className="text-faint">Sync:</span> {c.mode === "manual" ? "when you press Sync now" : c.live ? (plan === "free" ? "automatic, daily (when you open the app)" : "automatic, every 15 min while the app is open") : plan === "free" ? "automatic, daily" : "automatic, real-time"}</div>
                     <div><span className="text-faint">Last sync:</span> {fmtDateTime(c.lastSync)}</div>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => { const n = useStore.getState().connectExchange(ex.id, c.label); setSyncMsg(`${ex.name}: ${n} new trades synced.`); }}><RefreshCw size={13} /> Sync now</Button>
+                    <Button variant="outline" size="sm" className="flex-1" disabled={syncing === ex.id} onClick={() => syncNow(ex, c)}><RefreshCw size={13} className={syncing === ex.id ? "animate-spin" : ""} /> {syncing === ex.id ? "Syncing…" : "Sync now"}</Button>
                     <Button variant="ghost" size="sm" onClick={() => setOpen(ex)}>Edit</Button>
-                    <Button variant="ghost" size="sm" onClick={() => useStore.getState().disconnectExchange(ex.id)}>Disconnect</Button>
+                    <Button variant="ghost" size="sm" onClick={() => disconnect(ex)}>Disconnect</Button>
                   </div>
                 </div>
               ) : (
@@ -139,14 +158,33 @@ function ConnectModal({ ex, existing, paid, onClose, onDone }: { ex: ExchangeInf
   const [secret, setSecret] = useState("");
   const [pass, setPass] = useState("");
   const [mode, setMode] = useState<"auto" | "manual">(existing?.mode ?? "auto");
-  const [markets, setMarkets] = useState<CryptoMarket[]>(existing?.markets ?? ex.markets.filter((m) => MARKETS[m].free || paid));
+  const [markets, setMarkets] = useState<CryptoMarket[]>(existing?.markets ?? ex.markets.filter((m) => (MARKETS[m].free || paid) && (!REAL.has(ex.id) || OKX_REAL_MARKETS.includes(m))));
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [region, setRegion] = useState<OkxRegion>("global");
+  const real = REAL.has(ex.id);
+  const marketList = real ? ex.markets.filter((m) => OKX_REAL_MARKETS.includes(m)) : ex.markets;
   const valid = markets.length > 0 && (existing || (key.length >= 8 && secret.length >= 8 && (!ex.passphrase || pass.length > 0)));
   const toggle = (m: CryptoMarket) => setMarkets((v) => (v.includes(m) ? v.filter((x) => x !== m) : [...v, m]));
   const save = () => {
     if (existing) {
       useStore.getState().updateConnection(ex.id, { label, mode, markets });
       onDone(`${ex.name} settings saved.`);
+      return;
+    }
+    if (real) {
+      setBusy(true); setErr("");
+      (async () => {
+        try {
+          await connectOkx({ apiKey: key.trim(), secret: secret.trim(), passphrase: pass, label, region });
+        } catch (e) { setErr((e as Error).message); setBusy(false); return; }
+        try {
+          onDone(`Connected. ${await runOkxSync({ label, mode, markets })}`);
+        } catch (e) {
+          useStore.getState().mergeSynced("okx", [], { label, mode, markets });
+          onDone(`OKX connected, but the first sync failed: ${(e as Error).message} Press Sync now to try again.`);
+        }
+      })();
       return;
     }
     setBusy(true);
@@ -158,19 +196,20 @@ function ConnectModal({ ex, existing, paid, onClose, onDone }: { ex: ExchangeInf
         {!existing && (
           <div className="flex gap-3 rounded-lg border border-profit/25 bg-profit/5 p-3 text-xs text-muted">
             <ShieldCheck size={18} className="shrink-0 text-profit" />
-            <div>Create a <b className="text-ink">read-only</b> API key in {ex.name} → API Management. Leave trading and withdrawals <b className="text-ink">disabled</b>. Keys are encrypted at rest and only used server-side to fetch fills.</div>
+            <div>Create a <b className="text-ink">read-only</b> API key in {ex.name} → API Management. Leave trading and withdrawals <b className="text-ink">disabled</b>. {real ? <>We check the key with OKX and refuse it if it can trade or withdraw. It is sent once over HTTPS, stored encrypted on our server, and never shown in your browser again.</> : "Keys are encrypted at rest and only used server-side to fetch fills."}</div>
           </div>
         )}
         <div><Label>Account label</Label><Input value={label} onChange={(e) => setLabel(e.target.value)} /></div>
         {!existing && <>
           <div><Label>API key</Label><Input value={key} onChange={(e) => setKey(e.target.value)} placeholder="Paste API key" className="font-mono" /></div>
           <div><Label>API secret</Label><Input type="password" value={secret} onChange={(e) => setSecret(e.target.value)} placeholder="Paste secret" className="font-mono" /></div>
-          {ex.passphrase && <div><Label>Passphrase</Label><Input type="password" value={pass} onChange={(e) => setPass(e.target.value)} /></div>}
+          {ex.passphrase && <div><Label hint="The one you typed when creating the key">Passphrase</Label><Input type="password" value={pass} onChange={(e) => setPass(e.target.value)} /></div>}
+          {real && <div><Label hint="Where you signed up">OKX site</Label><Segmented value={region} onChange={setRegion} className="w-full" options={[{ value: "global", label: "Global (okx.com)" }, { value: "eea", label: "Europe (EEA)" }, { value: "us", label: "US" }]} /></div>}
         </>}
         <div>
           <Label hint="What to journal from this account">Markets</Label>
           <div className="grid grid-cols-2 gap-1.5">
-            {ex.markets.map((m) => {
+            {marketList.map((m) => {
               const locked = !MARKETS[m].free && !paid;
               const on = markets.includes(m);
               return (
@@ -187,10 +226,11 @@ function ConnectModal({ ex, existing, paid, onClose, onDone }: { ex: ExchangeInf
           <Label>Sync</Label>
           <Segmented value={mode} onChange={setMode} className="w-full" options={[{ value: "auto", label: paid ? "Auto (real-time)" : "Auto (daily)" }, { value: "manual", label: "Only when I press Sync" }]} />
         </div>
+        {err && <div className="flex items-start gap-2 rounded-lg border border-loss/30 bg-loss/10 px-3 py-2 text-xs text-loss"><AlertTriangle size={14} className="mt-0.5 shrink-0" /> {err}</div>}
         <Button className="w-full" disabled={!valid || busy} onClick={save}>
           {busy ? <><RefreshCw size={15} className="animate-spin" /> Syncing…</> : existing ? "Save settings" : <><Lock size={15} /> Connect & sync</>}
         </Button>
-        {!existing && <p className="text-center text-[11px] text-faint">Prototype: keys are not sent anywhere; a simulated sync imports sample fills.</p>}
+        {!existing && <p className="text-center text-[11px] text-faint">{real ? "Imports your closed trades from the last 3 months (the most OKX keeps)." : `Demo: ${ex.name} keys are not sent anywhere yet; a simulated sync imports sample fills.`}</p>}
       </div>
     </Modal>
   );

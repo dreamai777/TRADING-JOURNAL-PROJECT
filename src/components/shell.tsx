@@ -7,6 +7,7 @@ import { FX } from "@/core/currency";
 import type { CurrencyCode } from "@/core/types";
 import { useJournal } from "@/lib/hooks";
 import { useMarket } from "@/lib/market-store";
+import { autoSyncOkxIfDue } from "@/lib/okx-sync";
 import { useStore } from "@/lib/store";
 import { Logo } from "./logo";
 import { QuickSnap } from "./quick-snap";
@@ -51,6 +52,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (meId?.startsWith("u_local")) useMarket.getState().claimReferral(meId);
   }, [meId]);
 
+  // Real exchange connections set to Auto re-sync quietly when the app opens.
+  const paidPlan = !!me?.plan && me.plan !== "free";
+  useEffect(() => {
+    if (hydrated && meId) void autoSyncOkxIfDue(paidPlan);
+  }, [hydrated, meId, paidPlan]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {

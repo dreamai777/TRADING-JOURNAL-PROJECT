@@ -30,6 +30,27 @@ Chat goes to Claude through `src/app/api/ai/route.ts`. Set these env vars on the
 - `ANTHROPIC_API_KEY` (required for Claude; without it chat falls back to the offline engine)
 - `ANTHROPIC_MODEL` (optional, defaults to `claude-opus-5-5`)
 
+## Real OKX sync
+
+Connections → OKX imports real closed trades from the last 3 months (the most OKX keeps): perpetuals
+as `SOLUSDT.P`, spot as `SOLUSDT`, plus dated futures and margin on paid plans. The other exchanges
+still use the simulated demo sync.
+
+- Only **read-only** keys are accepted. The server asks OKX for the key's permissions
+  (`/api/v5/account/config`) and refuses keys that can trade or withdraw.
+- The key, secret and passphrase go to the server once and are encrypted with AES-256-GCM
+  (`src/server/vault.ts`), stored in Netlify Blobs (no setup needed on Netlify; `.data/` locally).
+  The browser only keeps a random httpOnly cookie that points at the stored key.
+- Perps, futures and margin come from OKX positions history (P&L, fees and funding as OKX reports
+  them). Spot fills are paired buy→sell first-in first-out (`src/core/okx.ts`). Re-syncing never
+  duplicates a trade.
+
+Env vars on the host:
+
+- `EXCHANGE_ENCRYPTION_KEY` (required): any long random text, 32+ characters. Changing it later
+  makes stored keys unreadable, so users would need to reconnect.
+- `OKX_API_BASE_OVERRIDE` (local testing only, ignored in production): point at a fake OKX server.
+
 ## Architecture
 
 ```
@@ -39,7 +60,8 @@ src/core/      Pure TypeScript domain engine. No React, no browser APIs.
                → Shared as-is with the future Expo (React Native) app.
 src/lib/       Client data layer (zustand). Same actions the Supabase repository will expose.
 src/components UI kit, charts (Recharts + TradingView Lightweight Charts), shell, quick snap.
-src/app/       Next.js App Router pages.
+src/app/       Next.js App Router pages. src/app/api/ = server routes (AI, exchange sync).
+src/server/    Server-only code: exchange key vault, signed OKX client.
 supabase/      Production Postgres schema with row-level security.
 ```
 
