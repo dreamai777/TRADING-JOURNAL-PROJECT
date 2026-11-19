@@ -46,7 +46,7 @@ export interface User {
   traderProfile?: TestResult;
   /** Academy lesson ids completed. */
   lessonsDone?: string[];
-  plan?: "free" | "guild";
+  plan?: "free" | "premium" | "ultra" | "guild";
   /** Equipped item id per slot (see core/items.ts). */
   loadout?: Partial<Record<"weapon" | "offhand" | "helm" | "armor" | "cloak" | "boots" | "trinket", string>>;
 }

@@ -1,26 +1,18 @@
-import { ArrowRight, BookOpen, Brain, Crown, GraduationCap, LineChart, Lock, Plug, ScrollText, Sparkles, Swords, Zap } from "lucide-react";
+import { ArrowRight, BookOpen, Brain, Crown, GraduationCap, LineChart, Plug, ScrollText, ShieldCheck, Sparkles, Swords, Zap } from "lucide-react";
 import Link from "next/link";
-import { CharacterSprite } from "@/components/character-sprite";
 import { GearIcon } from "@/components/gear-icon";
 import { ItemIcon } from "@/components/item-icon";
-import { LivingCharacter } from "@/components/living-character";
 import { GlowTracker } from "@/components/landing/glow";
 import { CoachTeaser, LiveCalendar, LiveChart, LivePortfolio } from "@/components/landing/live-widgets";
-import { WorldScene } from "@/components/landing/world-scene";
+import { ChampionParty, HoverChampion } from "@/components/landing/champions";
+import { EpicWorld } from "@/components/landing/epic-world";
+import { ProductTour } from "@/components/landing/product-tour";
+import { PricingCards } from "@/components/pricing";
 import { Logo } from "@/components/logo";
 import { JOBS } from "@/core/character";
 import { GEAR_TIERS } from "@/core/gear";
 import { ITEMS, ITEM_BY_ID } from "@/core/items";
 import type { JobClass } from "@/core/types";
-
-/** Demo party: each hero carries a weapon at a different gear tier (glow 0..7). */
-const PARTY: { job: JobClass; size: number; tier: 0 | 1 | 2; glow: number; hideSm?: boolean }[] = [
-  { job: "archer", size: 110, tier: 1, glow: 3.4, hideSm: true },
-  { job: "wizard", size: 130, tier: 2, glow: 5.5 },
-  { job: "warrior", size: 180, tier: 2, glow: 6.9 },
-  { job: "sniper", size: 130, tier: 2, glow: 4.6 },
-  { job: "assassin", size: 110, tier: 1, glow: 2.3, hideSm: true },
-];
 
 /** A spread of catalog items shown on the landing page, one per tier and slot mix. */
 const SHOWCASE: [string, number][] = [
@@ -34,6 +26,27 @@ const BOSSES = [
   { name: "Overleverage Titan", icon: "⚡", color: "#fbbf24", hp: 64, leak: "Sizing up after a win streak until one loss wipes the week.", fight: "Position-size calculator and alerts when your risk creeps above your plan." },
   { name: "Tilt Wraith", icon: "👻", color: "#a78bfa", hp: 55, leak: "Trading on emotion: anger, boredom, euphoria.", fight: "Tilt meter from your mood tags, and the exact dollar cost of each emotion." },
   { name: "Drawdown Dragon", icon: "🐉", color: "#ff5470", hp: 100, leak: "The final boss: a losing streak that breaks your account and your confidence.", fight: "HP bar tied to account health, max-drawdown guard, and a recovery quest line." },
+];
+
+const LOOP = [
+  { icon: Zap, color: "#c8f53b", title: "Log in seconds", body: "Type a trade in one line, import a CSV, or let your exchange sync it for you. Spot, perpetuals, futures and bots." },
+  { icon: LineChart, color: "#38d9f5", title: "See the truth", body: "Win rate, profit factor and expectancy by setup, hour, symbol and emotion, plus what each repeated mistake cost you in dollars." },
+  { icon: Swords, color: "#fb7a45", title: "Fix one leak at a time", body: "Your worst habit becomes a boss. Quests and your Spellbook checklist give you one clear rule to follow next." },
+  { icon: Crown, color: "#fbbf24", title: "Prove it worked", body: "Gear and ranks only move when your numbers improve over a real sample of trades. No luck, no vanity metrics." },
+];
+
+const PROOF = [
+  { label: "Rules followed", from: "58%", to: "86%" },
+  { label: "Average loss", from: "−1.6R", to: "−0.9R" },
+  { label: "Profit factor", from: "0.92", to: "1.64" },
+  { label: "Revenge trades a week", from: "4.1", to: "0.6" },
+];
+
+const TRUST = [
+  "Read-only API keys. EdgeForge can never trade or withdraw from your account.",
+  "Every number comes from your real fills, including fees and funding.",
+  "Export all your data as CSV at any time. It's yours.",
+  "Works in any browser on desktop and phone. The mobile app is next.",
 ];
 
 const REALMS = [
@@ -50,13 +63,22 @@ const REALMS = [
 function Section({ id, eyebrow, title, sub, children }: { id?: string; eyebrow: string; title: React.ReactNode; sub?: string; children: React.ReactNode }) {
   return (
     <section id={id} className="relative mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28">
-      <div className="mx-auto max-w-3xl text-center">
+      <div className="mx-auto max-w-3xl text-center [text-shadow:0_2px_24px_rgba(0,0,0,.85)]">
         <div className="text-[11px] font-bold uppercase tracking-[.25em] text-accent">{eyebrow}</div>
         <h2 className="mt-3 font-display text-3xl font-bold leading-tight sm:text-5xl">{title}</h2>
-        {sub && <p className="mx-auto mt-4 max-w-2xl text-base text-muted sm:text-lg">{sub}</p>}
+        {sub && <p className="mx-auto mt-4 max-w-2xl text-base text-ink/80 sm:text-lg">{sub}</p>}
       </div>
       <div className="mt-12">{children}</div>
     </section>
+  );
+}
+
+function Vista({ line, sub }: { line: string; sub: string }) {
+  return (
+    <div className="relative flex h-[62vh] min-h-[360px] flex-col items-center justify-center px-6 text-center [text-shadow:0_2px_30px_rgba(0,0,0,.9)]">
+      <p className="max-w-3xl font-display text-3xl font-bold text-white/90 sm:text-5xl">{line}</p>
+      <p className="mt-3 text-base text-white/70 sm:text-lg">{sub}</p>
+    </div>
   );
 }
 
@@ -76,19 +98,19 @@ export default function Home() {
   return (
     <div className="min-h-screen overflow-x-hidden">
       <GlowTracker />
+      <EpicWorld />
 
       {/* ── HERO ─────────────────────────────────────────────── */}
       <section className="relative flex min-h-[100svh] flex-col overflow-hidden">
-        <WorldScene />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-b from-transparent to-bg" />
         <div className="pointer-events-none absolute left-1/2 top-[22%] h-[46%] w-[min(1000px,100%)] -translate-x-1/2 rounded-[50%] bg-[#07051a]/55 blur-3xl" />
 
         <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-5 sm:px-6">
           <Logo />
           <nav className="flex items-center gap-1 text-sm">
-            <a href="#features" className="hidden px-3 py-2 text-ink/70 hover:text-ink md:block">Features</a>
+            <a href="#why" className="hidden px-3 py-2 text-ink/70 hover:text-ink md:block">Why it works</a>
+            <a href="#pricing" className="hidden px-3 py-2 text-ink/70 hover:text-ink md:block">Pricing</a>
             <a href="#classes" className="hidden px-3 py-2 text-ink/70 hover:text-ink md:block">Classes</a>
-            <a href="#academy" className="hidden px-3 py-2 text-ink/70 hover:text-ink md:block">Academy</a>
+            <a href="#academy" className="hidden px-3 py-2 text-ink/70 hover:text-ink lg:block">Academy</a>
             <Link href="/roadmap" className="hidden px-3 py-2 text-ink/70 hover:text-ink sm:block">Roadmap</Link>
             <Link href="/login" className="px-3 py-2 text-ink/80 hover:text-ink">Log in</Link>
             <Link href="/login" className="chrome rounded-lg bg-accent px-4 py-2 font-bold text-accent-ink">Start free</Link>
@@ -105,7 +127,7 @@ export default function Home() {
             <span className="lime-text">Level up to survive it.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base text-ink/75 sm:text-lg">
-            The trading journal built like an RPG. Journal in one snap, pick your trader class, defeat the bosses that drain your account, and forge gear that only real edge can unlock.
+            The trading journal that turns every trade into progress. Log it in one snap or auto-sync your exchange, see exactly where you win and lose, and level up a hero that only grows when your trading does.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/login" className="chrome group flex items-center gap-2 rounded-xl bg-accent px-6 py-3.5 font-bold text-accent-ink shadow-[0_14px_50px_-12px_rgba(200,245,59,.9)]">
@@ -129,17 +151,56 @@ export default function Home() {
               <div className="text-ink/60">7 days with no revenge trades</div>
             </div>
           </div>
-          <div className="flex items-end justify-center gap-1 sm:gap-4">
-            {PARTY.map((p) => (
-              <div key={p.job} className={`relative ${p.hideSm ? "hidden sm:block" : ""}`}>
-                <LivingCharacter job={p.job} condition={p.job === "warrior" ? "onfire" : "strong"} size={p.size} tier={p.tier} gear={{ weaponGlow: p.glow, weaponColor: GEAR_TIERS[Math.floor(p.glow)].color }} />
-              </div>
-            ))}
+          <div className="relative">
+            <ChampionParty jobs={["archer", "wizard", "warrior", "defender", "assassin", "sniper"]} sizes={[205, 225, 255, 215, 215, 205]} />
+            {/* rock ledge the party stands on */}
+            <svg viewBox="0 0 1000 60" preserveAspectRatio="none" className="pointer-events-none absolute -bottom-7 left-1/2 h-14 w-[115%] -translate-x-1/2" aria-hidden>
+              <defs><linearGradient id="ledge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3a2f2a" /><stop offset=".25" stopColor="#141016" /><stop offset="1" stopColor="#06080c" stopOpacity="0" /></linearGradient></defs>
+              <path d="M0 30 Q60 12 140 18 L260 10 Q330 6 420 12 L560 8 Q660 4 760 12 L880 10 Q950 16 1000 30 L1000 60 L0 60Z" fill="url(#ledge)" />
+              <path d="M140 18 L260 10 Q330 6 420 12 L560 8 Q660 4 760 12 L880 10" stroke="#ffcf9a" strokeOpacity=".35" strokeWidth="1.2" fill="none" />
+            </svg>
           </div>
-          <div className="mx-auto mt-1 h-3 w-4/5 rounded-[50%] bg-accent/20 blur-md" />
+
         </div>
         <a href="#live" aria-label="Scroll to features" className="relative z-10 mx-auto mb-6 flex h-9 w-6 justify-center rounded-full border border-white/25 pt-1.5"><span className="scroll-cue h-2 w-1 rounded-full bg-white/70" /></a>
       </section>
+
+      {/* ── WHY IT WORKS ────────────────────────────────────── */}
+      <Section id="why" eyebrow="Why traders use it" title={<>A journal that actually <span className="lime-text">makes you better</span>.</>} sub="Most accounts are drained by the same few habits, repeated. EdgeForge finds yours, puts a dollar number on each one, and gives you one quest at a time to fix it. Then it proves the fix worked.">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {LOOP.map((s, i) => (
+            <div key={s.title} tabIndex={0} className="chrome rounded-2xl border border-line bg-surface/85 p-5 backdrop-blur">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg font-display font-bold" style={{ background: `${s.color}22`, color: s.color }}>{i + 1}</span>
+                <s.icon size={18} style={{ color: s.color }} />
+              </div>
+              <div className="mt-3 font-display text-lg font-bold">{s.title}</div>
+              <p className="mt-1 text-sm text-muted">{s.body}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-12"><ProductTour /></div>
+        <div className="mt-10 grid gap-4 lg:grid-cols-[1.25fr_1fr]">
+          <div className="chrome rounded-2xl border border-line bg-surface/90 p-6 backdrop-blur">
+            <div className="text-[11px] font-bold uppercase tracking-[.2em] text-accent">What 8 weeks of honest journaling looks like</div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {PROOF.map((m) => (
+                <div key={m.label} className="rounded-xl bg-surface-2 p-3">
+                  <div className="text-[11px] text-muted">{m.label}</div>
+                  <div className="num mt-1 flex items-baseline gap-2"><span className="text-sm text-faint line-through decoration-loss/60">{m.from}</span><span className="text-xl font-bold text-profit">{m.to}</span></div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[11px] text-faint">Illustrative example built from the demo account. Results vary, and nothing here is a promise of profit.</p>
+          </div>
+          <div className="chrome rounded-2xl border border-line bg-surface/90 p-6 backdrop-blur">
+            <div className="text-[11px] font-bold uppercase tracking-[.2em] text-cyan">Built to be trusted</div>
+            <ul className="mt-4 space-y-3 text-sm">
+              {TRUST.map((t) => <li key={t} className="flex gap-2.5"><ShieldCheck size={17} className="mt-0.5 shrink-0 text-cyan" />{t}</li>)}
+            </ul>
+          </div>
+        </div>
+      </Section>
 
       {/* ── LIVE COMMAND CENTER ─────────────────────────────── */}
       <Section id="live" eyebrow="Your command center" title={<>Every number that matters, <span className="lime-text">live</span>.</>} sub="Charts, portfolio, calendar and coach update in real time as your trades sync. Shown here with demo data.">
@@ -147,10 +208,12 @@ export default function Home() {
           <Panel title="Live position" tag="Live"><LiveChart /></Panel>
           <Panel title="Portfolio tracker" tag="Synced"><LivePortfolio /></Panel>
           <Panel title="AI coach" tag="Preview" className="lg:order-last"><CoachTeaser /></Panel>
-          <Panel title="P&L calendar" tag="Auto"><LiveCalendar /></Panel>
+          <Panel title="Trading journal calendar" tag="Auto" className="lg:col-span-2"><LiveCalendar /></Panel>
         </div>
         <p className="mt-4 text-center text-xs text-faint">The AI coach preview shows the kind of answers it gives. Full coach arrives in Phase 2.</p>
       </Section>
+
+      <Vista line="Beyond the ridge, the Titan of Drawdown wakes." sub="Every account meets it. Prepared traders survive it." />
 
       {/* ── CLASSES ─────────────────────────────────────────── */}
       <Section id="classes" eyebrow="Choose your class" title="What kind of trader are you?" sub="Each class plays to a different style. Your character's mood follows your real trades: on fire after clean wins, wounded after a bad day, burned out when you overtrade.">
@@ -159,8 +222,8 @@ export default function Home() {
             const j = JOBS[id];
             return (
               <div key={id} tabIndex={0} className="chrome group rounded-2xl border border-line bg-surface p-4 sm:p-5" style={{ background: `radial-gradient(120% 80% at 50% 0%, ${j.color}1f, transparent 60%), var(--surface)` }}>
-                <div className="flex h-[120px] items-end justify-center transition duration-300 group-hover:-translate-y-1 sm:h-[150px]">
-                  <LivingCharacter job={id} condition="strong" size={110} tier={2} />
+                <div className="flex h-[150px] items-end justify-center sm:h-[170px]">
+                  <HoverChampion job={id} size={150} />
                 </div>
                 <div className="mt-3 font-display text-lg font-bold" style={{ color: j.color }}>{j.name}</div>
                 <div className="text-xs font-semibold text-ink/80">{j.style}</div>
@@ -197,6 +260,8 @@ export default function Home() {
           ))}
         </div>
       </Section>
+
+      <Vista line="The storm brings the Demon of Tilt." sub="Revenge trades feed it. Rules starve it." />
 
       {/* ── GEAR ────────────────────────────────────────────── */}
       <Section eyebrow="Loot you can't buy" title={<>Gear that only <span className="lime-text">real edge</span> unlocks.</>} sub="Every setup forges a weapon. It upgrades through seven tiers as your win rate, profit factor and discipline prove themselves over a real number of trades. A lucky week can't fake it, and gear can lose its tier if you slip.">
@@ -245,7 +310,7 @@ export default function Home() {
             <Link href="/login" className="chrome mt-6 rounded-xl border border-line-strong py-3 text-center font-semibold">Start free</Link>
           </div>
           <div className="chrome relative flex flex-col overflow-hidden rounded-2xl border border-gold/40 p-6" style={{ background: "radial-gradient(120% 80% at 100% 0%, rgba(251,191,36,.16), transparent 60%), radial-gradient(100% 60% at 0% 100%, rgba(167,139,250,.14), transparent 60%), var(--surface)" }}>
-            <div className="flex items-center gap-2 text-sm font-bold text-gold"><Crown size={18} /> Guild · Premium</div>
+            <div className="flex items-center gap-2 text-sm font-bold text-gold"><Crown size={18} /> Premium Academy</div>
             <div className="mt-2 font-display text-3xl font-bold">Speed-run <span className="text-base font-medium text-muted">your learning curve</span></div>
             <ul className="mt-5 space-y-2.5 text-sm">
               {[
@@ -253,14 +318,19 @@ export default function Home() {
                 "Video vault: recorded sessions, A+ setup library, real examples",
                 "Battle-ready paths: 30-day plans per class",
                 "Full AI coach: weekly reports and leak alerts",
-                "Unlimited exchange and prop-firm accounts",
+                "Live trading sessions and 1:1 reviews on Ultra",
                 "Early access to every new feature",
               ].map((x) => <li key={x} className="flex gap-2"><span className="text-gold">◆</span>{x}</li>)}
             </ul>
-            <Link href="/login" className="chrome mt-6 rounded-xl bg-gradient-to-r from-gold to-[#fb923c] py-3 text-center font-bold text-bg">Join the Guild waitlist</Link>
-            <div className="mt-2 flex items-center justify-center gap-1 text-[11px] text-faint"><Lock size={11} /> Pricing announced at launch</div>
+            <a href="#pricing" className="chrome mt-6 rounded-xl bg-gradient-to-r from-gold to-[#fb923c] py-3 text-center font-bold text-bg">See Premium and Ultra</a>
           </div>
         </div>
+      </Section>
+
+      {/* ── PRICING ─────────────────────────────────────────── */}
+      <Section id="pricing" eyebrow="Plans" title={<>Start free. <span className="lime-text">Upgrade when it pays for itself.</span></>} sub="Journaling and your real numbers are free forever. Premium saves you time and finds your edge faster. Ultra is for full-time and prop-firm traders.">
+        <PricingCards />
+        <div className="mt-6 text-center"><Link href="/pricing" className="text-sm font-semibold text-accent hover:underline">Compare every feature →</Link></div>
       </Section>
 
       {/* ── FEATURES ────────────────────────────────────────── */}
@@ -279,7 +349,7 @@ export default function Home() {
       {/* ── FINAL CTA ───────────────────────────────────────── */}
       <section className="relative mx-auto max-w-6xl px-4 pb-24 sm:px-6">
         <div className="chrome relative overflow-hidden rounded-3xl border border-line p-8 text-center sm:p-14" style={{ background: "radial-gradient(80% 120% at 50% 0%, rgba(200,245,59,.14), transparent 60%), radial-gradient(60% 80% at 100% 100%, rgba(56,217,245,.12), transparent 60%), var(--surface)" }}>
-          <div className="mx-auto flex justify-center"><CharacterSprite job="defender" condition="onfire" size={120} tier={2} /></div>
+          <div className="mx-auto flex justify-center"><HoverChampion job="warrior" size={170} /></div>
           <h2 className="mt-4 font-display text-3xl font-bold sm:text-5xl"><span className="chrome-text">Your adventure starts with one trade.</span></h2>
           <p className="mx-auto mt-4 max-w-xl text-muted">Log it, learn from it, level up. Free to start, no card needed.</p>
           <Link href="/login" className="chrome mt-8 inline-flex items-center gap-2 rounded-xl bg-accent px-7 py-4 font-bold text-accent-ink shadow-[0_14px_50px_-12px_rgba(200,245,59,.9)]">Enter the Forge <ArrowRight size={18} /></Link>

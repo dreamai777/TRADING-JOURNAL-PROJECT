@@ -194,3 +194,75 @@ input[type="range"] { accent-color: var(--accent); }
   .living-tilt, .char-head, .char-eyes { transform: none !important; transition: none !important; }
   .emote-cheer, .emote-hop, .emote-spin, .emote-flourish, .emote-flourish .char-arm, .emote-burst, .living-mark, .item-halo, .item-orbit, .item-gem, .item-spark { animation: none !important; }
 }
+
+/* ── Champions: backlit human heroes with class actions ── */
+.champ .champ-head { transform: translate(calc(var(--lx, 0) * 2.2px), calc(var(--ly, 0) * 1.4px)) rotate(calc(var(--lx, 0) * 5deg)); transform-origin: 72px 50px; transition: transform .3s ease-out; }
+.champ-breathe { animation: champ-breathe 3.6s ease-in-out infinite; transform-origin: 74px 212px; }
+@keyframes champ-breathe { 0%, 100% { transform: scale(1, 1) } 50% { transform: scale(1.006, 1.012) } }
+.champ-cape { animation: champ-cape 4s ease-in-out infinite; transform-origin: 70px 54px; }
+@keyframes champ-cape { 0%, 100% { transform: skewX(0) } 50% { transform: skewX(-4deg) } }
+.champ .fx-glow { animation: champ-glow 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes champ-glow { 0%, 100% { opacity: .75; transform: scale(.92) } 50% { opacity: 1; transform: scale(1.08) } }
+.champ .arm-f, .champ .arm-b, .champ .fore-f, .champ .fore-b { transition: transform .2s; }
+
+/* warrior: wind up over the head, then a fast slash with a light trail */
+.champ .fx-arc { stroke-dasharray: 0 100; opacity: 0; }
+.act-swing .arm-f { animation: swing-arm 1.6s cubic-bezier(.5,0,.2,1); }
+.act-swing .fore-f { animation: swing-fore 1.6s cubic-bezier(.5,0,.2,1); }
+.act-swing .fx-arc { animation: swing-arc 1.6s ease-out; }
+.act-swing .fx-blade { animation: flash 1.6s ease-out; }
+@keyframes swing-arm { 0% { transform: none } 35% { transform: rotate(-150deg) } 52% { transform: rotate(40deg) } 70% { transform: rotate(30deg) } 100% { transform: none } }
+@keyframes swing-fore { 0% { transform: none } 35% { transform: rotate(-30deg) } 52% { transform: rotate(10deg) } 100% { transform: none } }
+@keyframes swing-arc { 0%, 40% { stroke-dasharray: 0 100; opacity: 0 } 46% { opacity: 1 } 56% { stroke-dasharray: 100 0; opacity: 1 } 80%, 100% { stroke-dasharray: 100 0; opacity: 0 } }
+@keyframes flash { 0%, 30% { opacity: 0 } 45% { opacity: 1 } 100% { opacity: 0 } }
+
+/* wizard: lift the staff, a rune circle spins up, then the bolt flies */
+.act-cast .arm-f { animation: cast-arm 1.6s ease-in-out; }
+.act-cast .fx-circle { animation: cast-circle 1.6s ease-out; }
+.act-cast .fx-bolt { animation: cast-bolt 1.6s cubic-bezier(.4,0,.6,1); }
+@keyframes cast-arm { 0% { transform: none } 25%, 65% { transform: rotate(-28deg) translateY(-6px) } 100% { transform: none } }
+@keyframes cast-circle { 0% { opacity: 0; transform: translate(14px, -22px) scale(.3) rotate(0) } 25% { opacity: 1; transform: translate(14px, -22px) scale(1) rotate(60deg) } 60% { opacity: 1; transform: translate(14px, -22px) scale(1.05) rotate(180deg) } 100% { opacity: 0; transform: translate(14px, -22px) scale(1.4) rotate(260deg) } }
+@keyframes cast-bolt { 0%, 45% { opacity: 0; transform: translate(14px, -22px) } 50% { opacity: 1; transform: translate(14px, -22px) } 100% { opacity: 0; transform: translate(330px, -120px) } }
+
+/* archer: raise the bow, draw to the cheek, loose */
+.act-shoot .pose-idle { animation: hide-mid 1.6s; }
+.act-shoot .arm-f { animation: hide-mid 1.6s; }
+.act-shoot .pose-aim { animation: show-mid 1.6s; }
+.act-shoot .fx-nock { animation: nock 1.6s; }
+.act-shoot .fx-arrow { animation: arrow-fly 1.6s cubic-bezier(.2,.6,.3,1); }
+@keyframes hide-mid { 0%, 12% { opacity: 1 } 16%, 84% { opacity: 0 } 90%, 100% { opacity: 1 } }
+@keyframes show-mid { 0%, 12% { opacity: 0 } 16%, 84% { opacity: 1 } 90%, 100% { opacity: 0 } }
+@keyframes nock { 0%, 58% { opacity: 1 } 60%, 100% { opacity: 0 } }
+@keyframes arrow-fly { 0%, 58% { opacity: 0; transform: none } 60% { opacity: 1; transform: translateX(10px) } 100% { opacity: 0; transform: translateX(420px) } }
+
+/* sniper: shoulder the crossbow, muzzle flash, bolt */
+.act-fire .pose-idle, .act-fire .arm-f { animation: hide-mid 1.6s; }
+.act-fire .pose-aim { animation: show-mid 1.6s, recoil 1.6s; }
+.act-fire .pose-aim .fx-glow { animation: muzzle 1.6s; }
+.act-fire .fx-arrow { animation: arrow-fly 1.6s cubic-bezier(.1,.7,.3,1); }
+@keyframes recoil { 0%, 58% { transform: none } 62% { transform: translateX(-4px) rotate(-3deg) } 75%, 100% { transform: none } }
+@keyframes muzzle { 0%, 57% { opacity: 0 } 60% { opacity: 1 } 72%, 100% { opacity: 0 } }
+
+/* assassin: lunge forward with afterimages and a cross slash */
+.act-strike .champ-lunge { animation: lunge 1.6s cubic-bezier(.5,0,.1,1); }
+.act-strike .arm-f { animation: stab 1.6s cubic-bezier(.5,0,.1,1); }
+.act-strike .fx-slash { animation: flash-quick 1.6s; }
+.act-strike .fx-ghost-0 { animation: ghost 1.6s; }
+.act-strike .fx-ghost-1 { animation: ghost 1.6s .06s; }
+@keyframes lunge { 0%, 20% { transform: none } 40% { transform: translateX(46px) skewX(-8deg) } 70% { transform: translateX(40px) } 100% { transform: none } }
+@keyframes stab { 0%, 25% { transform: none } 40% { transform: rotate(-70deg) } 60% { transform: rotate(-40deg) } 100% { transform: none } }
+@keyframes flash-quick { 0%, 38% { opacity: 0 } 42% { opacity: 1 } 70%, 100% { opacity: 0 } }
+@keyframes ghost { 0%, 22% { opacity: 0; transform: none } 30% { opacity: .25; transform: translateX(14px) } 45%, 100% { opacity: 0; transform: translateX(30px) } }
+
+/* defender: shield forward, a dome ward and a ground ring */
+.act-guard .arm-b { animation: guard-arm 1.6s ease-in-out; }
+.act-guard .fx-dome { animation: dome 1.6s ease-out; }
+.act-guard .fx-ring { animation: ring 1.6s ease-out; transform-box: fill-box; transform-origin: center; }
+.act-guard .fx-blade { animation: flash 1.6s; }
+@keyframes guard-arm { 0% { transform: none } 25%, 70% { transform: translateX(34px) rotate(-20deg) } 100% { transform: none } }
+@keyframes dome { 0%, 22% { opacity: 0 } 35% { opacity: 1 } 75% { opacity: .7 } 100% { opacity: 0 } }
+@keyframes ring { 0%, 22% { opacity: 0; transform: scale(.4) } 35% { opacity: 1 } 100% { opacity: 0; transform: scale(1.6) } }
+
+@media (prefers-reduced-motion: reduce) {
+  .champ *, .champ { animation: none !important; transition: none !important; }
+}

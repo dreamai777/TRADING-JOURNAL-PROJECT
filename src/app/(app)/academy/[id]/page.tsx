@@ -1,4 +1,5 @@
 "use client";
+import { isPaid } from "@/core/plans";
 import { ArrowLeft, ArrowRight, Check, Crown, Lock, PlayCircle } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -20,7 +21,7 @@ function Lesson({ id }: { id: string }) {
   const complete = useStore((s) => s.completeLesson);
   const [picked, setPicked] = useState<number | null>(null);
   if (!me) return null;
-  const st = academyState({ trades, setups, testTaken: !!me.traderProfile, lessonsDone: me.lessonsDone ?? [] }, me.plan === "guild");
+  const st = academyState({ trades, setups, testTaken: !!me.traderProfile, lessonsDone: me.lessonsDone ?? [] }, isPaid(me.plan));
   const idx = st.lessons.findIndex((l) => l.id === id);
   const l = st.lessons[idx];
   if (!l) return <div className="py-20 text-center text-muted">Lesson not found. <Link href="/academy" className="text-accent">Back to the Academy</Link></div>;
@@ -36,22 +37,22 @@ function Lesson({ id }: { id: string }) {
       <h1 className="mt-1 font-display text-3xl font-bold leading-tight">{l.title}</h1>
       <div className="mt-2 flex items-center gap-3 text-xs text-muted">
         <span>{l.minutes} min</span>
-        {premium ? <span className="flex items-center gap-1 font-bold text-gold"><Crown size={12} /> Guild</span> : <span className="font-bold text-profit">Free</span>}
+        {premium ? <span className="flex items-center gap-1 font-bold text-gold"><Crown size={12} /> Premium</span> : <span className="font-bold text-profit">Free</span>}
         <span className="num font-bold text-gold">+{xp} XP</span>
       </div>
 
       {!l.unlocked ? (
         <Card className="mt-6 p-6 text-center">
           <Lock className="mx-auto text-faint" />
-          <div className="mt-2 font-display text-lg font-bold">{premium ? "Guild lesson" : "Locked"}</div>
-          <p className="mt-1 text-sm text-muted">{premium ? "This lesson is part of the Guild premium plan." : <>Complete the quest <b className="text-ink">{l.quest?.title}</b> to unlock it.</>}</p>
+          <div className="mt-2 font-display text-lg font-bold">{premium ? "Premium lesson" : "Locked"}</div>
+          <p className="mt-1 text-sm text-muted">{premium ? "This lesson is part of the Premium and Ultra plans." : <>Complete the quest <b className="text-ink">{l.quest?.title}</b> to unlock it.</>}</p>
           {premium && PREMIUM_OUTLINES[l.id] && <Outline items={PREMIUM_OUTLINES[l.id]} />}
           <Link href="/academy" className="mt-4 inline-block rounded-lg border border-line-strong px-4 py-2 text-sm font-semibold">Back to the Academy</Link>
         </Card>
       ) : premium ? (
         <>
           <div className="mt-6 flex aspect-video items-center justify-center rounded-2xl border border-gold/30 bg-gradient-to-br from-gold/10 to-violet/10">
-            {body?.videoUrl ? <video src={body.videoUrl} controls className="h-full w-full rounded-2xl" /> : <div className="text-center"><PlayCircle size={48} className="mx-auto text-gold" /><div className="mt-2 text-sm text-muted">Recording drops with the Guild launch</div></div>}
+            {body?.videoUrl ? <video src={body.videoUrl} controls className="h-full w-full rounded-2xl" /> : <div className="text-center"><PlayCircle size={48} className="mx-auto text-gold" /><div className="mt-2 text-sm text-muted">Recording drops with the Premium launch</div></div>}
           </div>
           {PREMIUM_OUTLINES[l.id] && <Card className="mt-4 p-5"><Outline items={PREMIUM_OUTLINES[l.id]} /></Card>}
           <Done done={l.completed} xp={xp} onDone={() => complete(l.id, xp)} next={next} />
